@@ -293,7 +293,7 @@ export function RightActionSidebar({
                   ? 'bg-[#121c27] hover:bg-[#1a2d42] text-[#66c0f4] hover:text-[#99d6ff] border-[#22394f] hover:border-[#325373] cursor-pointer'
                   : 'bg-[#141820] text-gray-600 border-[#1a212a] cursor-not-allowed opacity-50'
               }`}
-              title="Повернути початкові теги зі Steam та системний статус unsorted для вибраних модів"
+              title="Повернути початкові теги зі Steam та статус «не відсортовано» для вибраних модів"
             >
               <RotateCcw className="w-3.5 h-3.5 shrink-0" />
               <span>Повернути оригінальні теги</span>

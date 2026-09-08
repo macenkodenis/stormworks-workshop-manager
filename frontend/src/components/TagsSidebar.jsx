@@ -1030,27 +1030,27 @@ export function TagsSidebar({
             <div className="grid grid-cols-2 gap-1 bg-[#101822] p-1 rounded border border-[#202e3e] text-[11px]">
               <button
                 onClick={() => setSystemFilter(prev => ({ ...prev, sort: prev.sort === 'sorted' ? null : 'sorted' }))}
-                title="Моди, до яких додано хоча б один користувацький тег"
+                title="Моди, до яких додано хоча б один користувацький тег або відсортовано вручну"
                 className={`py-1 px-1.5 rounded transition flex items-center justify-between ${
                   systemFilter.sort === 'sorted'
                     ? 'bg-[#253f2c] text-[#a4d053] font-semibold border border-[#3b6346]'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <span className="truncate">Розібрані</span>
+                <span className="truncate">Відсортовані</span>
                 <span className="font-mono text-[10px] opacity-75">{systemCounts.sorted}</span>
               </button>
 
               <button
                 onClick={() => setSystemFilter(prev => ({ ...prev, sort: prev.sort === 'unsorted' ? null : 'unsorted' }))}
-                title="Моди без користувацьких тегів"
+                title="Моди без користувацьких тегів або не відсортовані"
                 className={`py-1 px-1.5 rounded transition flex items-center justify-between ${
                   systemFilter.sort === 'unsorted'
                     ? 'bg-[#3d2c1f] text-[#f49e42] font-semibold border border-[#634832]'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <span className="truncate">Не розібрані</span>
+                <span className="truncate">Не відсортовані</span>
                 <span className="font-mono text-[10px] opacity-75">{systemCounts.unsorted}</span>
               </button>
             </div>

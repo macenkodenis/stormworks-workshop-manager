@@ -17,7 +17,8 @@ import {
   EyeOff,
   Trash2,
   PowerOff,
-  Power
+  Power,
+  CircleDashed
 } from 'lucide-react';
 
 export function ItemDetailModal({
@@ -112,7 +113,7 @@ export function ItemDetailModal({
         console.error('Failed to toggle sorted:', err);
       }
     }
-    setStubMessage(nextState ? 'Статус змінено: Розібрано' : 'Статус змінено: Не розібрано');
+    setStubMessage(nextState ? 'Статус змінено: Відсортовано' : 'Статус змінено: Не відсортовано');
     setTimeout(() => setStubMessage(null), 3000);
   };
 
@@ -275,6 +276,18 @@ export function ItemDetailModal({
     }
   };
 
+  // Remove manually added Steam Tag (which was not in original Steam tags)
+  const handleRemoveSteamTag = (tagToRemove) => {
+    const nextTags = safeSteamTags.filter(t => t.toLowerCase() !== tagToRemove.toLowerCase());
+    const nextDeactivated = safeDeactivatedSteamTags.filter(t => t.toLowerCase() !== tagToRemove.toLowerCase());
+    setSteamTags(nextTags);
+    setDeactivatedSteamTags(nextDeactivated);
+    setIsSorted(true);
+    if (onUpdateSteamTags) {
+      onUpdateSteamTags(item.published_file_id, nextTags, nextDeactivated);
+    }
+  };
+
   // Deactivate Steam Tag
   const handleDeactivateSteamTag = (tagToDeactivate) => {
     if (!safeDeactivatedSteamTags.includes(tagToDeactivate)) {
@@ -340,6 +353,13 @@ export function ItemDetailModal({
     }
   };
 
+  // Set of original Steam tags fetched from Steam (lowercase for safe matching)
+  const originalSteamTagsSet = new Set(
+    (Array.isArray(item?.original_steam_tags) ? item.original_steam_tags : []).map(t =>
+      typeof t === 'string' ? t.toLowerCase() : ''
+    )
+  );
+
   // Build ordered unified tag list for detailed view:
   // 1. Active tags: user tags + active Steam tags (order within themselves preserved)
   // 2. Deactivated Steam tags: placed AFTER all active tags (order preserved)
@@ -347,19 +367,22 @@ export function ItemDetailModal({
   const activeSteamTagItems = safeSteamTags.filter(t => !deactivatedSet.has(t)).map(t => ({
     tag: t,
     type: 'steam',
-    deactivated: false
+    deactivated: false,
+    isOriginal: originalSteamTagsSet.has(t.toLowerCase())
   }));
   const userTagItems = safeUserTags.map(t => ({
     tag: t,
     type: 'user',
-    deactivated: false
+    deactivated: false,
+    isOriginal: false
   }));
   const activeTags = [...userTagItems, ...activeSteamTagItems];
 
   const deactivatedSteamTagItems = safeSteamTags.filter(t => deactivatedSet.has(t)).map(t => ({
     tag: t,
     type: 'steam',
-    deactivated: true
+    deactivated: true,
+    isOriginal: originalSteamTagsSet.has(t.toLowerCase())
   }));
 
   const allDisplayTags = [...activeTags, ...deactivatedSteamTagItems];
@@ -487,47 +510,52 @@ export function ItemDetailModal({
             {/* Right: Metadata Panel & Action Buttons (col-span-4) */}
             <div className="lg:col-span-4 flex flex-col space-y-2.5">
               
-              {/* Status block: Installation/Active + Sorted status */}
-              <div className="bg-[#131c26] border border-[#1f2d3d] rounded-lg p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {isUnsubscribed ? (
-                      <Trash2 className="w-4 h-4 text-[#ff6b6b] shrink-0" />
-                    ) : isDisabled ? (
-                      <PowerOff className="w-4 h-4 text-[#f49e42] shrink-0" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4 text-[#a4d053] shrink-0" />
-                    )}
-                    <div>
-                      <span className="text-[10px] text-[#8f98a0] block">Статус</span>
-                      <strong className={`text-xs font-semibold ${
-                        isUnsubscribed
-                          ? 'text-[#ff6b6b]'
-                          : isDisabled
-                          ? 'text-[#f49e42]'
-                          : 'text-[#a4d053]'
-                      }`}>
-                        {isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] text-[#8f98a0] block">Організація</span>
-                    <button
-                      type="button"
-                      onClick={handleToggleSorted}
-                      title={isSorted ? 'Натисніть, щоб змінити на "Не розібрано"' : 'Натисніть, щоб змінити на "Розібрано"'}
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded cursor-pointer transition active:scale-95 select-none border ${
-                        isSorted
-                          ? 'bg-[#253f2c] hover:bg-[#2f4f37] text-[#a4d053] border-[#3b6346] hover:border-[#4d825c]'
-                          : 'bg-[#3d2c1f] hover:bg-[#4d3727] text-[#f49e42] border-[#634832] hover:border-[#825e41]'
-                      }`}
-                    >
-                      {isSorted ? 'Розібрано' : 'Не розібрано'}
-                    </button>
+              {/* Status & Organization Block */}
+              <div className="bg-[#131c26] border border-[#1f2d3d] rounded-lg p-2.5 grid grid-cols-2 gap-2">
+                {/* 1. Status Indicator */}
+                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[#0d141d]/60 border border-[#1a2533]">
+                  {isUnsubscribed ? (
+                    <Trash2 className="w-4 h-4 text-[#ff6b6b] shrink-0" />
+                  ) : isDisabled ? (
+                    <PowerOff className="w-4 h-4 text-[#f49e42] shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-[#a4d053] shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-[#8f98a0] block">Статус</span>
+                    <strong className={`text-xs font-semibold truncate block ${
+                      isUnsubscribed
+                        ? 'text-[#ff6b6b]'
+                        : isDisabled
+                        ? 'text-[#f49e42]'
+                        : 'text-[#a4d053]'
+                    }`}>
+                      {isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}
+                    </strong>
                   </div>
                 </div>
+
+                {/* 2. Organization Indicator (styled analogous to Status) */}
+                <button
+                  type="button"
+                  onClick={handleToggleSorted}
+                  title={isSorted ? 'Натисніть, щоб змінити на "Не відсортовано"' : 'Натисніть, щоб змінити на "Відсортовано"'}
+                  className="flex items-center gap-2.5 p-2 rounded-lg bg-[#0d141d]/60 hover:bg-[#15202c] border border-[#1a2533] hover:border-[#2d4358] transition cursor-pointer text-left select-none group"
+                >
+                  {isSorted ? (
+                    <CheckCircle2 className="w-4 h-4 text-[#a4d053] shrink-0 group-hover:scale-105 transition" />
+                  ) : (
+                    <CircleDashed className="w-4 h-4 text-[#f49e42] shrink-0 group-hover:scale-105 transition" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-[#8f98a0] block group-hover:text-gray-300 transition">Організація</span>
+                    <strong className={`text-xs font-semibold truncate block ${
+                      isSorted ? 'text-[#a4d053]' : 'text-[#f49e42]'
+                    }`}>
+                      {isSorted ? 'Відсортовано' : 'Не відсортовано'}
+                    </strong>
+                  </div>
+                </button>
               </div>
 
               {/* Stack of Action Buttons */}
@@ -685,7 +713,7 @@ export function ItemDetailModal({
                   type="button"
                   onClick={handleResetOriginalTags}
                   className="px-2 py-0.5 rounded text-[11px] font-medium transition border flex items-center gap-1 bg-[#121c27] hover:bg-[#1a2d42] text-[#66c0f4] hover:text-[#99d6ff] border-[#22394f] hover:border-[#325373] cursor-pointer"
-                  title="Повернути початкові теги зі Steam та повернути статус unsorted"
+                  title="Повернути початкові теги зі Steam та статус «не відсортовано»"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Повернути оригінальні теги</span>
@@ -695,7 +723,7 @@ export function ItemDetailModal({
 
             {/* Tags Badges List (Active first, then Deactivated Steam tags) */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              {allDisplayTags.map(({ tag, type, deactivated }, idx) => {
+              {allDisplayTags.map(({ tag, type, deactivated, isOriginal }, idx) => {
                 const isUser = type === 'user';
                 const isSteam = type === 'steam';
                 const isSelectedInFilter = isUser
@@ -735,23 +763,37 @@ export function ItemDetailModal({
                       </button>
                     )}
 
-                    {isSteam && !deactivated && (
+                    {/* Manually added Steam tag: can be deleted completely */}
+                    {isSteam && !isOriginal && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSteamTag(tag)}
+                        className="text-gray-400 hover:text-white p-0.5 cursor-pointer ml-0.5"
+                        title="Видалити доданий вручну Steam-тег"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    {/* Original Steam tag: can only be hidden/deactivated */}
+                    {isSteam && isOriginal && !deactivated && (
                       <button
                         type="button"
                         onClick={() => handleDeactivateSteamTag(tag)}
                         className="text-gray-400 hover:text-white p-0.5 cursor-pointer ml-0.5"
-                        title="Деактивувати цей Steam-тег для цього моду"
+                        title="Приховати цей Steam-тег для цього моду"
                       >
                         <EyeOff className="w-3 h-3" />
                       </button>
                     )}
 
-                    {isSteam && deactivated && (
+                    {/* Original Steam tag (deactivated): can be reactivated */}
+                    {isSteam && isOriginal && deactivated && (
                       <button
                         type="button"
                         onClick={() => handleReactivateSteamTag(tag)}
                         className="text-[#66c0f4] hover:text-white p-0.5 cursor-pointer ml-0.5"
-                        title="Повторно активувати Steam-тег"
+                        title="Повернути показ Steam-тегу"
                       >
                         <RotateCcw className="w-3 h-3" />
                       </button>
