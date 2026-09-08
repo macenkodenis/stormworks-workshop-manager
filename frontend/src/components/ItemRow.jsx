@@ -266,82 +266,93 @@ export function ItemRow({
       {/* 2. Unified Content Section: title, meta, description, tags */}
       <div className="flex-1 min-w-0 p-2.5 sm:p-3 flex flex-col justify-between gap-1.5">
         
-        {/* Row 1: Title, ID (Steam link on M & L), Status Badges & Dates */}
-        <div>
+        {/* Top Section: Title, Meta, Description */}
+        <div className="min-w-0 flex flex-col gap-1 sm:gap-1.5">
+          
+          {/* Row 1: Title & Steam ID Workshop Link (or Org badge for S) */}
           <div className="flex items-center justify-between gap-2 min-w-0">
-            
-            {/* Title & ID link strictly on the same line (title truncates before pushing ID) */}
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              <h3
-                className={`${cardSize === 1 ? 'text-xs' : 'text-sm'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 shrink leading-tight`}
-                title={item.title}
+            <h3
+              className={`${cardSize === 1 ? 'text-xs' : cardSize === 2 ? 'text-sm' : 'text-sm sm:text-base'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 flex-1 leading-tight`}
+              title={item.title}
+            >
+              {item.title}
+            </h3>
+
+            {/* For M & L: Mod ID is itself the Workshop Link; omitted on S cards */}
+            {cardSize !== 1 && (
+              <a
+                href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap"
+                title="Відкрити сторінку мода в Steam Workshop"
               >
-                {item.title}
-              </h3>
+                ID: {item.published_file_id}
+                <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              </a>
+            )}
 
-              {/* For M & L: Mod ID is itself the Workshop Link; omitted on S cards */}
-              {cardSize !== 1 && (
-                <a
-                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap"
-                  title="Відкрити сторінку мода в Steam Workshop"
-                >
-                  ID: {item.published_file_id}
-                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                </a>
-              )}
-
-              {/* Author (visible in L mode) */}
-              {item.creator && cardSize === 3 && (
-                <span className="text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate shrink-0 hidden md:inline">
-                  автор: <strong className="text-gray-300 font-normal">{item.creator}</strong>
-                </span>
-              )}
-            </div>
-
-            {/* Status indicators & Dates */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end text-[10.5px] sm:text-[11px]">
-              {/* Organization Badge */}
-              {item.is_sorted ? (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap">
+            {/* For S cards: Show organization badge right on the title row for compactness */}
+            {cardSize === 1 && (
+              item.is_sorted ? (
+                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap shrink-0">
                   Відсортовано
                 </span>
               ) : (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap">
+                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap shrink-0">
+                  Не відсортовано
+                </span>
+              )
+            )}
+          </div>
+
+          {/* Row 2: Metadata Bar for M & L cards (Badges, Author, Dates) */}
+          {cardSize !== 1 && (
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none">
+              {/* Organization Badge */}
+              {item.is_sorted ? (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap shrink-0">
+                  Відсортовано
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap shrink-0">
                   Не відсортовано
                 </span>
               )}
 
               {/* Status Badge */}
-              <div className="flex items-center gap-1 text-[#5c7e10] whitespace-nowrap">
-                <CheckCircle2 className="w-3 h-3" />
+              <div className="flex items-center gap-1 text-[#5c7e10] whitespace-nowrap shrink-0">
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
                 <span className="text-[10px] sm:text-[10.5px]">Встановлено</span>
               </div>
 
-              {/* Updated timestamp (only for M & L cards; omitted on S cards) */}
-              {cardSize !== 1 && (
-                <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap" title="Дата оновлення">
-                  <Calendar className="w-3 h-3 text-[#66c0f4]" />
-                  <span>{formatDate(item.time_updated || item.local_mtime)}</span>
-                </div>
+              {/* Author (visible in L mode) */}
+              {item.creator && cardSize === 3 && (
+                <span className="text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate max-w-[200px] shrink-0" title={`Автор: ${item.creator}`}>
+                  автор: <span className="text-gray-300 font-medium">{item.creator}</span>
+                </span>
               )}
+
+              {/* Updated timestamp (for M & L) */}
+              <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата оновлення">
+                <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
+                <span>{formatDate(item.time_updated || item.local_mtime)}</span>
+              </div>
 
               {/* Created timestamp (only in L mode) */}
               {item.time_created && cardSize === 3 && (
-                <div className="hidden lg:flex items-center gap-1 font-mono text-[10.5px] text-[#758494] whitespace-nowrap" title="Дата створення">
-                  <Clock className="w-3 h-3 text-gray-500" />
+                <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата створення">
+                  <Clock className="w-3 h-3 text-gray-500 shrink-0" />
                   <span>{formatDate(item.time_created)}</span>
                 </div>
               )}
             </div>
-          </div>
+          )}
 
-          {/* Row 2: Clean Description Excerpt */}
+          {/* Row 3: Clean Description Excerpt */}
           {descriptionSnippet && (
-            <p className={`mt-1 text-xs text-[#8f98a0] leading-relaxed max-w-full ${cardSize === 1 ? 'line-clamp-1' : 'line-clamp-2'}`}>
+            <p className={`text-xs text-[#8f98a0] leading-relaxed max-w-full ${cardSize === 1 ? 'line-clamp-1' : 'line-clamp-2'}`}>
               {descriptionSnippet}
             </p>
           )}
