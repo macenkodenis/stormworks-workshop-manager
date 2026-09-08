@@ -294,101 +294,107 @@ export function ItemRow({
       {/* 2. Unified Content Section: title, meta, description, tags */}
       <div className="@container flex-1 min-w-0 px-2.5 py-2 sm:px-3 sm:py-2 flex flex-col justify-between gap-1 h-full overflow-hidden">
         
-        {/* Top Header Row: Title & ID on line 1, Metadata on right or line 2. Strict max 2 lines. */}
-        <div className="shrink-0 min-w-0 flex items-center justify-between gap-x-3 gap-y-1 flex-wrap max-h-[50px] sm:max-h-[54px] overflow-hidden">
-          {/* Title & Steam ID Workshop Link */}
-          <div className="flex items-center gap-2 min-w-[min(100%,200px)] flex-1 max-w-full">
-            <h3
-              className={`${cardSize === 1 ? 'text-xs' : cardSize === 2 ? 'text-sm' : 'text-sm sm:text-base'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 flex-1 leading-tight`}
-              title={item.title}
-            >
-              {item.title}
-            </h3>
-
-            {/* Mod ID is Workshop Link; shown when space permits (>= 380px), omitted on S */}
-            {cardSize !== 1 && (
-              <a
-                href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap hidden @min-[380px]:inline-flex"
-                title="Відкрити сторінку мода в Steam Workshop"
+        {/* Top Header Section: Row 1 = Title (all remaining space) + Right corner Status/Sorting */}
+        <div className="shrink-0 min-w-0 flex flex-col gap-y-1 overflow-hidden">
+          {/* Row 1: Title on left (all remaining space), Status & Sorting in right corner */}
+          <div className="shrink-0 min-w-0 flex items-center justify-between gap-2 w-full">
+            {/* Title & optional ID link: takes all available remaining space */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <h3
+                className={`${cardSize === 1 ? 'text-xs' : cardSize === 2 ? 'text-sm' : 'text-sm sm:text-base'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 flex-1 leading-tight`}
+                title={item.title}
               >
-                ID: {item.published_file_id}
-                <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              </a>
-            )}
-          </div>
+                {item.title}
+              </h3>
 
-          {/* Metadata Bar (Badges, Author, Dates): flex-nowrap to guarantee max 1 line, drops dates then author if space is tight */}
-          <div className="flex items-center gap-2 flex-nowrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none min-w-0 max-w-full overflow-hidden shrink-0">
-            {/* Status Indicator (full analogue of ItemDetailModal: highest priority, visible in edgecases) */}
-            <div
-              className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] sm:text-[10.5px] font-medium ${
-                isUnsubscribed
-                  ? 'text-[#ff6b6b]'
-                  : isDisabled
-                  ? 'text-[#f49e42]'
-                  : 'text-[#a4d053]'
-              }`}
-              title={`Статус: ${isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}`}
-            >
-              {isUnsubscribed ? (
-                <Trash2 className="w-3 h-3 shrink-0" />
-              ) : isDisabled ? (
-                <PowerOff className="w-3 h-3 shrink-0" />
-              ) : (
-                <CheckCircle2 className="w-3 h-3 shrink-0" />
+              {/* Mod ID is Workshop Link; shown when space permits on M & L (>= 420px), omitted on S */}
+              {cardSize !== 1 && (
+                <a
+                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap hidden @min-[420px]:inline-flex"
+                  title="Відкрити сторінку мода в Steam Workshop"
+                >
+                  ID: {item.published_file_id}
+                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </a>
               )}
-              <span>{isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}</span>
             </div>
 
-            {/* Organization Badge (lower priority than status; hidden in narrow edgecases) */}
-            <span
-              className={`hidden @min-[280px]:inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
-                item.is_sorted
-                  ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
-                  : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
-              }`}
-              title={item.is_sorted ? 'Організація: Відсортовано' : 'Організація: Не відсортовано'}
-            >
-              {item.is_sorted ? 'Відсортовано' : 'Не відсортовано'}
-            </span>
-
-            {/* Author Name (for L & M): drops if width < 360px */}
-            {authorName && cardSize !== 1 && (
-              <span
-                className="hidden @min-[360px]:inline-flex items-center text-[10.5px] sm:text-[11px] text-[#8f98a0] min-w-0 shrink truncate max-w-[170px]"
-                title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
-              >
-                <span className="shrink-0 mr-1">автор:</span>
-                <span className="text-gray-300 font-medium truncate">{authorName}</span>
-              </span>
-            )}
-
-            {/* Updated timestamp (for M & L): drops if width < 480px (dates drop before author) */}
-            {cardSize !== 1 && (
+            {/* Right corner: Status & Sorting badge */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Status Indicator (full analogue of ItemDetailModal: highest priority, always visible in right corner) */}
               <div
-                className="hidden @min-[480px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
+                className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] sm:text-[10.5px] font-medium ${
+                  isUnsubscribed
+                    ? 'text-[#ff6b6b]'
+                    : isDisabled
+                    ? 'text-[#f49e42]'
+                    : 'text-[#a4d053]'
+                }`}
+                title={`Статус: ${isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}`}
+              >
+                {isUnsubscribed ? (
+                  <Trash2 className="w-3 h-3 shrink-0" />
+                ) : isDisabled ? (
+                  <PowerOff className="w-3 h-3 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-3 h-3 shrink-0" />
+                )}
+                <span>{isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}</span>
+              </div>
+
+              {/* Organization Badge (shown if space allows, hidden in narrow edgecases) */}
+              <span
+                className={`hidden @min-[280px]:inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
+                  item.is_sorted
+                    ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
+                    : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
+                }`}
+                title={item.is_sorted ? 'Організація: Відсортовано' : 'Організація: Не відсортовано'}
+              >
+                {item.is_sorted ? 'Відсортовано' : 'Не відсортовано'}
+              </span>
+            </div>
+          </div>
+
+          {/* Row 2 (for M and L cards): Author, Dates — only if space permits */}
+          {cardSize !== 1 && (
+            <div className="shrink-0 min-w-0 flex items-center gap-2 sm:gap-2.5 flex-nowrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none overflow-hidden max-w-full">
+              {/* Author Name (for L & M): drops if width < 360px */}
+              {authorName && (
+                <span
+                  className="hidden @min-[360px]:inline-flex items-center text-[10.5px] sm:text-[11px] text-[#8f98a0] min-w-0 shrink truncate max-w-[170px]"
+                  title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                >
+                  <span className="shrink-0 mr-1">автор:</span>
+                  <span className="text-gray-300 font-medium truncate">{authorName}</span>
+                </span>
+              )}
+
+              {/* Updated timestamp (for M & L): drops if width < 460px */}
+              <div
+                className="hidden @min-[460px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
                 title="Дата оновлення"
               >
                 <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
                 <span>{formatDate(item.time_updated || item.local_mtime)}</span>
               </div>
-            )}
 
-            {/* Created timestamp (only in L mode): drops first if width < 580px */}
-            {item.time_created && cardSize === 3 && (
-              <div
-                className="hidden @min-[580px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
-                title="Дата створення"
-              >
-                <Clock className="w-3 h-3 text-gray-500 shrink-0" />
-                <span>{formatDate(item.time_created)}</span>
-              </div>
-            )}
-          </div>
+              {/* Created timestamp (only in L mode): drops first if width < 580px */}
+              {item.time_created && cardSize === 3 && (
+                <div
+                  className="hidden @min-[580px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
+                  title="Дата створення"
+                >
+                  <Clock className="w-3 h-3 text-gray-500 shrink-0" />
+                  <span>{formatDate(item.time_created)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Middle Section: Dynamic multi-line description snippet that fills available vertical space */}
