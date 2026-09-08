@@ -1267,28 +1267,42 @@ export function App() {
     return items.filter(it => selectedIds.has(it.published_file_id));
   }, [items, selectedIds]);
 
+  // Dynamic CSS Grid style for List view: auto-fills columns with a minimum width limit to prevent cramped cards
+  const listGridStyle = useMemo(() => {
+    if (viewMode === 'list') {
+      if (cardSize === 1) {
+        // S: auto-fill with minimum card width 340px (drops column count if field is too narrow or scaled)
+        return {
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))'
+        };
+      }
+      if (cardSize === 2) {
+        // M: auto-fill with minimum card width 480px (drops to 1 column if field is narrow)
+        return {
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 480px), 1fr))'
+        };
+      }
+      // L: strictly 1 mod per row (full width)
+      return {
+        gridTemplateColumns: '1fr'
+      };
+    }
+    return undefined;
+  }, [viewMode, cardSize]);
+
   // Grid column class according to viewMode & cardSize, with responsive scale for wide viewports
   const gridClass = useMemo(() => {
     if (viewMode === 'list') {
-      if (cardSize === 1) {
-        // S: multiple mods per row, narrow horizontal cards
-        return 'grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 gap-2.5';
-      }
-      if (cardSize === 2) {
-        // M: multiple mods per row, wide horizontal cards
-        return 'grid-cols-1 xl:grid-cols-2 gap-2.5';
-      }
-      // L: 1 mod per row (full width)
-      return 'grid-cols-1 gap-2.5';
+      return 'grid gap-2.5';
     }
 
     if (cardSize === 1) {
-      return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9 gap-3';
+      return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9 gap-3';
     }
     if (cardSize === 3) {
-      return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-5';
+      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-5';
     }
-    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
+    return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
   }, [cardSize, viewMode]);
 
   // Mod index in current filtered list for modal navigation
@@ -1387,7 +1401,7 @@ export function App() {
               )}
             </div>
           ) : (
-            <div className={`grid ${gridClass}`}>
+            <div className={gridClass} style={listGridStyle}>
               {filteredItems.map((item, index) => {
                 const isSelected = selectedIds.has(item.published_file_id);
                 const isAnchor = anchorId === item.published_file_id;
