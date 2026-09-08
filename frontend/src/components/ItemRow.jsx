@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useLayoutEffect } from 'react';
 import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
 import { getTagDisplayPath } from '../utils/tagUtils';
 
@@ -66,6 +66,52 @@ export function ItemRow({
   const isUnsubscribed = Boolean(item.is_unsubscribed);
   const descriptionSnippet = cleanDescription(item.description);
 
+  // Dynamic tags fitting to fill entire row width without wrapping or overflowing
+  const tagsContainerRef = useRef(null);
+  const [visibleTagCount, setVisibleTagCount] = useState(displayTags.length);
+
+  useLayoutEffect(() => {
+    const container = tagsContainerRef.current;
+    if (!container || displayTags.length === 0) return;
+
+    const computeFit = () => {
+      const containerWidth = container.offsetWidth;
+      if (containerWidth <= 0) return;
+
+      const children = Array.from(container.children);
+      let totalWidth = 0;
+      let fitCount = 0;
+      const gap = 4;
+      const remainderReserve = 32;
+
+      for (let i = 0; i < displayTags.length; i++) {
+        const child = children[i];
+        if (!child) break;
+        const childWidth = child.offsetWidth;
+        const needed = totalWidth + childWidth + (fitCount > 0 ? gap : 0);
+
+        const hasMore = i < displayTags.length - 1;
+        if (needed + (hasMore ? gap + remainderReserve : 0) <= containerWidth) {
+          totalWidth = needed;
+          fitCount++;
+        } else if (fitCount === 0 && needed <= containerWidth) {
+          fitCount = 1;
+          break;
+        } else {
+          break;
+        }
+      }
+
+      setVisibleTagCount(Math.max(1, fitCount));
+    };
+
+    computeFit();
+
+    const observer = new ResizeObserver(computeFit);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [displayTags.length, item.published_file_id, cardSize]);
+
   // Background style based on selection
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
   if (isSelected) {
@@ -74,10 +120,10 @@ export function ItemRow({
 
   // Adaptive thumbnail width based on card density (cardSize: 1 = S, 2 = M, 3 = L)
   const thumbWidthClass = cardSize === 1
-    ? 'w-32 sm:w-36'
+    ? 'w-28 sm:w-32'
     : cardSize === 2
-    ? 'w-40 sm:w-48'
-    : 'w-48 sm:w-56 md:w-64';
+    ? 'w-36 sm:w-44'
+    : 'w-48 sm:w-56 md:w-60';
 
   return (
     <div
@@ -220,42 +266,44 @@ export function ItemRow({
       {/* 2. Unified Content Section: title, meta, description, tags */}
       <div className="flex-1 min-w-0 p-2.5 sm:p-3 flex flex-col justify-between gap-1.5">
         
-        {/* Row 1: Title, ID, Steam link, Author, Status Badges & Dates */}
+        {/* Row 1: Title, ID (Steam link on M & L), Status Badges & Dates */}
         <div>
-          <div className={`flex items-start justify-between gap-2 ${cardSize === 3 ? 'flex-wrap sm:flex-nowrap' : 'flex-wrap'}`}>
+          <div className="flex items-center justify-between gap-2 min-w-0">
             
-            {/* Title & primary links */}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <h3
-                  className={`${cardSize === 1 ? 'text-xs' : 'text-sm'} font-bold text-white group-hover:text-[#66c0f4] transition truncate max-w-full leading-tight`}
-                  title={item.title}
-                >
-                  {item.title}
-                </h3>
-                <span className="font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] px-1.5 py-0.5 rounded border border-[#233547] shrink-0">
-                  ID: {item.published_file_id}
-                </span>
+            {/* Title & ID link strictly on the same line (title truncates before pushing ID) */}
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+              <h3
+                className={`${cardSize === 1 ? 'text-xs' : 'text-sm'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 shrink leading-tight`}
+                title={item.title}
+              >
+                {item.title}
+              </h3>
+
+              {/* For M & L: Mod ID is itself the Workshop Link; omitted on S cards */}
+              {cardSize !== 1 && (
                 <a
                   href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-[#66c0f4] flex items-center gap-1 text-[10.5px] sm:text-[11px] text-[#8f98a0] transition shrink-0"
-                  title="Відкрити в Steam Workshop"
+                  className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap"
+                  title="Відкрити сторінку мода в Steam Workshop"
                 >
-                  Steam <ExternalLink className="w-3 h-3" />
+                  ID: {item.published_file_id}
+                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 </a>
-                {item.creator && cardSize !== 1 && (
-                  <span className="text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate shrink-0">
-                    автор: <strong className="text-gray-300 font-normal">{item.creator}</strong>
-                  </span>
-                )}
-              </div>
+              )}
+
+              {/* Author (visible in L mode) */}
+              {item.creator && cardSize === 3 && (
+                <span className="text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate shrink-0 hidden md:inline">
+                  автор: <strong className="text-gray-300 font-normal">{item.creator}</strong>
+                </span>
+              )}
             </div>
 
             {/* Status indicators & Dates */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end text-[10.5px] sm:text-[11px]">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end text-[10.5px] sm:text-[11px]">
               {/* Organization Badge */}
               {item.is_sorted ? (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap">
@@ -273,13 +321,15 @@ export function ItemRow({
                 <span className="text-[10px] sm:text-[10.5px]">Встановлено</span>
               </div>
 
-              {/* Updated timestamp */}
-              <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap" title="Дата оновлення">
-                <Calendar className="w-3 h-3 text-[#66c0f4]" />
-                <span>{formatDate(item.time_updated || item.local_mtime)}</span>
-              </div>
+              {/* Updated timestamp (only for M & L cards; omitted on S cards) */}
+              {cardSize !== 1 && (
+                <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap" title="Дата оновлення">
+                  <Calendar className="w-3 h-3 text-[#66c0f4]" />
+                  <span>{formatDate(item.time_updated || item.local_mtime)}</span>
+                </div>
+              )}
 
-              {/* Created timestamp (in L mode) */}
+              {/* Created timestamp (only in L mode) */}
               {item.time_created && cardSize === 3 && (
                 <div className="hidden lg:flex items-center gap-1 font-mono text-[10.5px] text-[#758494] whitespace-nowrap" title="Дата створення">
                   <Clock className="w-3 h-3 text-gray-500" />
@@ -297,10 +347,10 @@ export function ItemRow({
           )}
         </div>
 
-        {/* Row 3: Tags Flow (User tags + Steam tags with hierarchical path display) */}
+        {/* Row 3: Tags Flow (single line with dynamic fit & remainder badge, zero overflow) */}
         {displayTags.length > 0 && (
-          <div className="mt-1 flex items-center gap-1 flex-wrap overflow-hidden pt-1 border-t border-[#233547]/40 max-h-14">
-            {displayTags.map(({ tag, type }, idx) => {
+          <div ref={tagsContainerRef} className="mt-1 flex items-center gap-1 w-full overflow-hidden pt-1 border-t border-[#233547]/40 min-w-0">
+            {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
               const isUser = type === 'user';
               const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
               const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
@@ -326,6 +376,11 @@ export function ItemRow({
                 </span>
               );
             })}
+            {displayTags.length > visibleTagCount && (
+              <span className="text-[10.5px] text-gray-500 font-mono self-center shrink-0">
+                +{displayTags.length - visibleTagCount}
+              </span>
+            )}
           </div>
         )}
 
