@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { TagsSidebar } from './components/TagsSidebar';
 import { RightActionSidebar } from './components/RightActionSidebar';
 import { ItemCard } from './components/ItemCard';
+import { ItemRow } from './components/ItemRow';
 import { ActionPlanModal } from './components/ActionPlanModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -31,6 +32,16 @@ export function App() {
   const handleSetCardSize = (size) => {
     setCardSize(size);
     localStorage.setItem('sw_card_size', String(size));
+  };
+
+  // View Mode: 'grid' (Tiles) or 'list' (Horizontal Rows)
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('sw_view_mode') || 'grid';
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('sw_view_mode', mode);
   };
 
   // Show/Hide Floating Control Hints Overlay
@@ -1256,8 +1267,21 @@ export function App() {
     return items.filter(it => selectedIds.has(it.published_file_id));
   }, [items, selectedIds]);
 
-  // Grid column class according to cardSize, with responsive scale for wide viewports
+  // Grid column class according to viewMode & cardSize, with responsive scale for wide viewports
   const gridClass = useMemo(() => {
+    if (viewMode === 'list') {
+      if (cardSize === 1) {
+        // S: multiple mods per row, narrow horizontal cards
+        return 'grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 gap-2.5';
+      }
+      if (cardSize === 2) {
+        // M: multiple mods per row, wide horizontal cards
+        return 'grid-cols-1 xl:grid-cols-2 gap-2.5';
+      }
+      // L: 1 mod per row (full width)
+      return 'grid-cols-1 gap-2.5';
+    }
+
     if (cardSize === 1) {
       return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9 gap-3';
     }
@@ -1265,7 +1289,7 @@ export function App() {
       return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-5';
     }
     return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
-  }, [cardSize]);
+  }, [cardSize, viewMode]);
 
   // Mod index in current filtered list for modal navigation
   const currentDetailIndex = useMemo(() => {
@@ -1307,6 +1331,8 @@ export function App() {
         setSortDir={setSortDir}
         cardSize={cardSize}
         setCardSize={handleSetCardSize}
+        viewMode={viewMode}
+        setViewMode={handleSetViewMode}
         totalItems={items.length}
         filteredCount={filteredItems.length}
       />
@@ -1346,7 +1372,7 @@ export function App() {
           <div className="w-1 h-12 rounded-full bg-[#202e3e] group-hover:bg-[#66c0f4] group-active:bg-[#66c0f4] transition" />
         </div>
 
-        {/* Center Column: Direct Items Grid */}
+        {/* Center Column: Direct Items Grid / List */}
         <main ref={mainRef} className="flex-1 min-w-0 px-2 relative">
           {filteredItems.length === 0 ? (
             <div className="text-center py-16 bg-[#171d25] rounded-xl border border-[#233547]">
@@ -1365,6 +1391,26 @@ export function App() {
               {filteredItems.map((item, index) => {
                 const isSelected = selectedIds.has(item.published_file_id);
                 const isAnchor = anchorId === item.published_file_id;
+                if (viewMode === 'list') {
+                  return (
+                    <ItemRow
+                      key={item.published_file_id}
+                      item={item}
+                      index={index}
+                      isSelected={isSelected}
+                      isAnchor={isAnchor}
+                      selectedSteamTags={selectedTags}
+                      selectedUserTags={selectedUserTags}
+                      onItemClick={handleItemClick}
+                      onOpenDetail={(it) => setDetailItem(it)}
+                      onToggleFavorite={handleToggleFavorite}
+                      pendingAction={pendingActions[item.published_file_id] || null}
+                      onRemovePendingAction={handleRemoveFromPlan}
+                      tagPathMap={tagPathMap}
+                      cardSize={cardSize}
+                    />
+                  );
+                }
                 return (
                   <ItemCard
                     key={item.published_file_id}

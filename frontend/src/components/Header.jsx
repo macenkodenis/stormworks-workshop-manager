@@ -4,6 +4,7 @@ import {
   Search,
   ArrowUpDown,
   LayoutGrid,
+  List,
   HardDrive,
   RefreshCw,
   Settings,
@@ -24,6 +25,8 @@ export function Header({
   setSortDir,
   cardSize,
   setCardSize,
+  viewMode = 'grid',
+  setViewMode,
   totalItems,
   filteredCount
 }) {
@@ -147,9 +150,37 @@ export function Header({
             {sortDir === 'asc' ? '▲' : '▼'}
           </button>
 
-          {/* Card Size S / M / L Selector */}
-          <div className="flex items-center gap-1.5 bg-[#101822] px-2.5 py-1 rounded-md border border-[#26374a]">
-            <LayoutGrid className="w-3.5 h-3.5 text-[#66c0f4]" />
+          {/* View Mode (Grid / List) & Density Selector */}
+          <div className="flex items-center gap-2 bg-[#101822] px-2 py-1 rounded-md border border-[#26374a]">
+            {/* Mode Switcher Buttons */}
+            <div className="flex items-center gap-0.5 bg-[#17212d] p-0.5 rounded border border-[#233547]">
+              <button
+                type="button"
+                onClick={() => setViewMode && setViewMode('grid')}
+                title="Режим: Сітка"
+                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
+                  viewMode === 'grid'
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode && setViewMode('list')}
+                title="Режим: Список"
+                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
+                  viewMode === 'list'
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Density Range Slider */}
             <input
               type="range"
               min="1"
@@ -157,27 +188,41 @@ export function Header({
               step="1"
               value={cardSize}
               onChange={(e) => setCardSize(Number(e.target.value))}
-              className="w-14 accent-[#66c0f4] cursor-pointer h-1 bg-[#202e3d] rounded-lg"
-              title={cardSize === 1 ? 'Компактна сітка (S)' : cardSize === 2 ? 'Стандартна сітка (M)' : 'Велика сітка (L)'}
+              className="w-12 sm:w-14 accent-[#66c0f4] cursor-pointer h-1 bg-[#202e3d] rounded-lg"
+              title={
+                viewMode === 'grid'
+                  ? cardSize === 1
+                    ? 'Компактна сітка (S)'
+                    : cardSize === 2
+                    ? 'Стандартна сітка (M)'
+                    : 'Велика сітка (L)'
+                  : cardSize === 1
+                  ? 'Список: декілька модів на рядок (вузька картка, S)'
+                  : cardSize === 2
+                  ? 'Список: декілька модів на рядок (широка картка, M)'
+                  : 'Список: 1 мод на рядок (L)'
+              }
             />
+
+            {/* S / M / L Button Group */}
             <div className="flex items-center gap-0.5 font-mono text-[10px]">
               <button
                 onClick={() => setCardSize(1)}
-                title="Компактна сітка (S)"
+                title={viewMode === 'grid' ? 'Компактна сітка (S)' : 'Список: вузькі картки (S)'}
                 className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 1 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 S
               </button>
               <button
                 onClick={() => setCardSize(2)}
-                title="Стандартна сітка (M)"
+                title={viewMode === 'grid' ? 'Стандартна сітка (M)' : 'Список: широкі картки (M)'}
                 className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 2 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 M
               </button>
               <button
                 onClick={() => setCardSize(3)}
-                title="Велика сітка (L)"
+                title={viewMode === 'grid' ? 'Велика сітка (L)' : 'Список: 1 мод на рядок (L)'}
                 className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 3 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 L
