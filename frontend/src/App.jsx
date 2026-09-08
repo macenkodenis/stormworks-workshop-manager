@@ -3,7 +3,7 @@ import { Header } from './components/Header';
 import { TagsSidebar } from './components/TagsSidebar';
 import { RightActionSidebar } from './components/RightActionSidebar';
 import { ItemCard } from './components/ItemCard';
-import { DryRunModal } from './components/DryRunModal';
+import { ActionPlanModal } from './components/ActionPlanModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ControlsHintOverlay } from './components/ControlsHintOverlay';
@@ -134,10 +134,9 @@ export function App() {
   const [anchorIndex, setAnchorIndex] = useState(null);
 
   // Modal states
-  const [dryRunPlan, setDryRunPlan] = useState(null);
-  const [scriptText, setScriptText] = useState('');
-  const [isDryRunModalOpen, setIsDryRunModalOpen] = useState(false);
-  const [isExecutingDryRun, setIsExecutingDryRun] = useState(false);
+  const [pendingActions, setPendingActions] = useState({}); // { [itemId]: 'disable' | 'enable' | 'unsubscribe' | 'subscribe' }
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isExecutingPlan, setIsExecutingPlan] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
 
@@ -895,61 +894,138 @@ export function App() {
     }
   };
 
-  // Execute Unsubscribe from DryRunModal
-  const handleExecuteDryRunUnsubscribe = async () => {
-    const ids = Array.from(selectedIds);
-    if (!ids.length) return;
-    setIsExecutingDryRun(true);
-    try {
-      await fetch('/api/items/bulk-set-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_unsubscribed: true, mode: steamMode })
-      });
-      setItems(prev => prev.map(it => {
-        if (selectedIds.has(it.published_file_id)) {
-          return { ...it, is_unsubscribed: true };
+  // Mod Action Planning Handlers
+  const handlePlanAction = (actionType) => {
+    if (selectedIds.size === 0) return;
+    setPendingActions(prev => {
+      const next = { ...prev };
+      // If all selected items already have this action, toggle it off
+      const allHaveThis = Array.from(selectedIds).every(id => next[id] === actionType);
+      selectedIds.forEach(id => {
+        if (allHaveThis) {
+          delete next[id];
+        } else {
+          next[id] = actionType;
         }
-        return it;
-      }));
-      if (detailItem && selectedIds.has(detailItem.published_file_id)) {
-        setDetailItem(prev => prev ? { ...prev, is_unsubscribed: true } : prev);
-      }
-      setIsDryRunModalOpen(false);
-      fetchSteamStatus();
-    } catch (err) {
-      console.error('Failed to execute unsubscribe:', err);
-    } finally {
-      setIsExecutingDryRun(false);
-    }
+      });
+      return next;
+    });
   };
 
-  // Execute Disable from DryRunModal
-  const handleExecuteDryRunDisable = async () => {
-    const ids = Array.from(selectedIds);
-    if (!ids.length) return;
-    setIsExecutingDryRun(true);
+  const handleRemoveFromPlan = (itemId) => {
+    setPendingActions(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const handleClearPlan = () => {
+    setPendingActions({});
+    setIsPlanModalOpen(false);
+  };
+
+  const handleExecutePlan = async () => {
+    const planEntries = Object.entries(pendingActions);
+    if (!planEntries.length) return;
+
+    setIsExecutingPlan(true);
     try {
-      await fetch('/api/items/bulk-set-disabled', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_disabled: true, mode: steamMode })
+      const toDisable = [];
+      const toEnable = [];
+      const toUnsubscribe = [];
+      const toSubscribe = [];
+
+      planEntries.forEach(([id, action]) => {
+        if (action === 'disable') toDisable.push(id);
+        else if (action === 'enable') toEnable.push(id);
+        else if (action === 'unsubscribe') toUnsubscribe.push(id);
+        else if (action === 'subscribe') toSubscribe.push(id);
       });
+
+      const tasks = [];
+      if (toDisable.length > 0) {
+        tasks.push(fetch('/api/items/bulk-set-disabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_ids: toDisable, is_disabled: true, mode: steamMode })
+        }));
+      }
+      if (toEnable.length > 0) {
+        tasks.push(fetch('/api/items/bulk-set-disabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_ids: toEnable, is_disabled: false, mode: steamMode })
+        }));
+      }
+      if (toUnsubscribe.length > 0) {
+        tasks.push(fetch('/api/items/bulk-set-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_ids: toUnsubscribe, is_unsubscribed: true, mode: steamMode })
+        }));
+      }
+      if (toSubscribe.length > 0) {
+        tasks.push(fetch('/api/items/bulk-set-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_ids: toSubscribe, is_unsubscribed: false, mode: steamMode })
+        }));
+      }
+
+      await Promise.all(tasks);
+
+      // Update local items state
+      const disableSet = new Set(toDisable);
+      const enableSet = new Set(toEnable);
+      const unsubSet = new Set(toUnsubscribe);
+      const subSet = new Set(toSubscribe);
+
       setItems(prev => prev.map(it => {
-        if (selectedIds.has(it.published_file_id)) {
-          return { ...it, is_disabled: true };
+        const id = it.published_file_id;
+        let is_disabled = it.is_disabled;
+        let is_unsubscribed = it.is_unsubscribed;
+
+        if (disableSet.has(id)) is_disabled = true;
+        if (enableSet.has(id)) is_disabled = false;
+        if (unsubSet.has(id)) {
+          is_unsubscribed = true;
+          is_disabled = true;
+        }
+        if (subSet.has(id)) is_unsubscribed = false;
+
+        if (is_disabled !== it.is_disabled || is_unsubscribed !== it.is_unsubscribed) {
+          return { ...it, is_disabled, is_unsubscribed };
         }
         return it;
       }));
-      if (detailItem && selectedIds.has(detailItem.published_file_id)) {
-        setDetailItem(prev => prev ? { ...prev, is_disabled: true } : prev);
+
+      // Update detailItem if it was involved
+      if (detailItem && pendingActions[detailItem.published_file_id]) {
+        const id = detailItem.published_file_id;
+        setDetailItem(prev => {
+          if (!prev) return prev;
+          let is_disabled = prev.is_disabled;
+          let is_unsubscribed = prev.is_unsubscribed;
+          if (disableSet.has(id)) is_disabled = true;
+          if (enableSet.has(id)) is_disabled = false;
+          if (unsubSet.has(id)) {
+            is_unsubscribed = true;
+            is_disabled = true;
+          }
+          if (subSet.has(id)) is_unsubscribed = false;
+          return { ...prev, is_disabled, is_unsubscribed };
+        });
       }
-      setIsDryRunModalOpen(false);
+
+      // Reset plan and close modal
+      setPendingActions({});
+      setIsPlanModalOpen(false);
       fetchSteamStatus();
     } catch (err) {
-      console.error('Failed to execute disable:', err);
+      console.error('Failed to execute action plan:', err);
     } finally {
-      setIsExecutingDryRun(false);
+      setIsExecutingPlan(false);
     }
   };
 
@@ -1268,6 +1344,8 @@ export function App() {
                     onItemClick={handleItemClick}
                     onOpenDetail={(it) => setDetailItem(it)}
                     onToggleFavorite={handleToggleFavorite}
+                    pendingAction={pendingActions[item.published_file_id] || null}
+                    onRemovePendingAction={handleRemoveFromPlan}
                   />
                 );
               })}
@@ -1302,9 +1380,11 @@ export function App() {
             totalSelectedBytes={totalSelectedBytes}
             onSelectAllFiltered={handleSelectAllFiltered}
             onClearSelection={handleClearSelection}
-            onOpenDryRun={handleOpenDryRun}
-            onBulkToggleDisabled={handleBulkToggleDisabled}
-            onBulkToggleSubscription={handleBulkToggleSubscription}
+            onPlanAction={handlePlanAction}
+            pendingActionsCount={Object.keys(pendingActions).length}
+            onOpenPlanModal={() => setIsPlanModalOpen(true)}
+            onClearPlan={handleClearPlan}
+            pendingActions={pendingActions}
             selectedItems={selectedItemsList}
             filteredCount={filteredItems.length}
             onBulkAddTag={handleBulkUnifiedAddTag}
@@ -1341,14 +1421,17 @@ export function App() {
         </ErrorBoundary>
       )}
 
-      {/* Dry-Run Unsubscribe Modal */}
-      {isDryRunModalOpen && (
-        <DryRunModal
-          plan={dryRunPlan}
-          onClose={() => setIsDryRunModalOpen(false)}
-          onExecuteUnsubscribe={handleExecuteDryRunUnsubscribe}
-          onExecuteDisable={handleExecuteDryRunDisable}
-          isExecuting={isExecutingDryRun}
+      {/* Mod Action Plan Modal */}
+      {isPlanModalOpen && (
+        <ActionPlanModal
+          isOpen={isPlanModalOpen}
+          onClose={() => setIsPlanModalOpen(false)}
+          onClearPlan={handleClearPlan}
+          onExecutePlan={handleExecutePlan}
+          isExecuting={isExecutingPlan}
+          pendingActions={pendingActions}
+          items={items}
+          onRemoveFromPlan={handleRemoveFromPlan}
           steamMode={steamMode}
           steamStatus={steamStatus}
         />

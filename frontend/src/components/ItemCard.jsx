@@ -1,5 +1,5 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
-import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Trash2 } from 'lucide-react';
+import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
 
 export function ItemCard({
   item,
@@ -10,7 +10,9 @@ export function ItemCard({
   selectedUserTags = new Set(),
   onItemClick,
   onOpenDetail,
-  onToggleFavorite
+  onToggleFavorite,
+  pendingAction = null,
+  onRemovePendingAction
 }) {
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -157,27 +159,62 @@ export function ItemCard({
           />
         </button>
 
-        {/* Status badges in top right corner: Відключено & Не підписаний */}
-        {(isDisabled || isUnsubscribed) && (
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-auto">
-            {isDisabled && (
-              <div
-                title="Відключено"
-                className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#1c140c]/90 text-[#f49e42] border border-[#f49e42]/60 flex items-center justify-center"
-              >
-                <PowerOff className="w-3.5 h-3.5" />
-              </div>
-            )}
-            {isUnsubscribed && (
-              <div
-                title="Не підписаний"
-                className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#201014]/90 text-[#ff6b6b] border border-[#ff6b6b]/60 flex items-center justify-center"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </div>
-            )}
-          </div>
-        )}
+        {/* Pending Planned Action Badge & Status badges in top right corner */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-auto">
+          {pendingAction && (
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onRemovePendingAction) {
+                  onRemovePendingAction(item.published_file_id);
+                }
+              }}
+              title={`Заплановано: ${
+                pendingAction === 'disable'
+                  ? 'Вимкнути'
+                  : pendingAction === 'enable'
+                  ? 'Увімкнути'
+                  : pendingAction === 'unsubscribe'
+                  ? 'Відписатися'
+                  : 'Підписатися'
+              }. Натисніть, щоб скасувати`}
+              className={`p-1 px-1.5 rounded-md backdrop-blur-xs transition shadow flex items-center gap-1 cursor-pointer group/badge ${
+                pendingAction === 'disable'
+                  ? 'bg-[#2b190d]/95 text-[#f49e42] border border-[#f49e42] hover:bg-[#3d2313]'
+                  : pendingAction === 'enable'
+                  ? 'bg-[#14281a]/95 text-[#a4d053] border border-[#a4d053] hover:bg-[#1d3d27]'
+                  : pendingAction === 'unsubscribe'
+                  ? 'bg-[#2b1014]/95 text-[#ff6b6b] border border-[#ff6b6b] hover:bg-[#40181e]'
+                  : 'bg-[#102030]/95 text-[#66c0f4] border border-[#66c0f4] hover:bg-[#163047]'
+              }`}
+            >
+              {pendingAction === 'disable' && <PowerOff className="w-3.5 h-3.5" />}
+              {pendingAction === 'enable' && <Power className="w-3.5 h-3.5" />}
+              {pendingAction === 'unsubscribe' && <Trash2 className="w-3.5 h-3.5" />}
+              {pendingAction === 'subscribe' && <CheckCircle2 className="w-3.5 h-3.5" />}
+              <span className="text-[10px] font-bold">План</span>
+              <X className="w-3 h-3 opacity-60 group-hover/badge:opacity-100" />
+            </div>
+          )}
+
+          {isDisabled && (
+            <div
+              title="Відключено"
+              className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#1c140c]/90 text-[#f49e42] border border-[#f49e42]/60 flex items-center justify-center"
+            >
+              <PowerOff className="w-3.5 h-3.5" />
+            </div>
+          )}
+          {isUnsubscribed && (
+            <div
+              title="Не підписаний"
+              className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#201014]/90 text-[#ff6b6b] border border-[#ff6b6b]/60 flex items-center justify-center"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </div>
+          )}
+        </div>
 
         <img
           src={previewSrc}
