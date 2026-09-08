@@ -30,7 +30,8 @@ export function TagsSidebar({
   onToggleUserTag,
   onCreateUserTag,
   onDeleteUserTag,
-  onBatchSetTags
+  onBatchSetTags,
+  onTagStructureChange
 }) {
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
@@ -101,6 +102,9 @@ export function TagsSidebar({
       .then(data => {
         if (data && Array.isArray(data.structure) && data.structure.length > 0) {
           setTree(data.structure);
+          if (onTagStructureChange) {
+            onTagStructureChange(data.structure);
+          }
         }
         hasLoadedRef.current = true;
       })
@@ -112,6 +116,9 @@ export function TagsSidebar({
 
   // Save tree structure whenever it changes (after initial load)
   const saveTreeToBackend = (newTree) => {
+    if (onTagStructureChange) {
+      onTagStructureChange(newTree);
+    }
     fetch('/api/tag-structure', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

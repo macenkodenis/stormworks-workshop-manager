@@ -9,6 +9,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { ControlsHintOverlay } from './components/ControlsHintOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
+import { buildTagPathMap } from './utils/tagUtils';
 
 export function App() {
   const [items, setItems] = useState([]);
@@ -233,6 +234,24 @@ export function App() {
       .catch(console.error);
   }, [sortBy, sortDir]);
 
+  // Tag Structure state for hierarchical folders
+  const [tagStructure, setTagStructure] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/tag-structure')
+      .then(r => r.json())
+      .then(data => {
+        if (data && Array.isArray(data.structure)) {
+          setTagStructure(data.structure);
+        }
+      })
+      .catch(err => console.warn('Failed to load tag structure in App:', err));
+  }, []);
+
+  const { tagPathMap, reverseTagPathMap } = useMemo(() => {
+    return buildTagPathMap(tagStructure);
+  }, [tagStructure]);
+
   // Search filtered base pool
   const searchFilteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -242,9 +261,17 @@ export function App() {
       const idMatch = it.published_file_id.includes(q);
       const creatorMatch = it.creator?.includes(q);
       const descMatch = it.description?.toLowerCase().includes(q);
-      return titleMatch || idMatch || creatorMatch || descMatch;
+      const tagsMatch = (it.tags || []).some(t => {
+        const path = tagPathMap ? (tagPathMap.get(`steam:${t}`) || tagPathMap.get(t) || '') : '';
+        return t.toLowerCase().includes(q) || path.toLowerCase().includes(q);
+      });
+      const userTagsMatch = (it.user_tags || []).some(t => {
+        const path = tagPathMap ? (tagPathMap.get(`user:${t}`) || tagPathMap.get(t) || '') : '';
+        return t.toLowerCase().includes(q) || path.toLowerCase().includes(q);
+      });
+      return titleMatch || idMatch || creatorMatch || descMatch || tagsMatch || userTagsMatch;
     });
-  }, [items, searchQuery]);
+  }, [items, searchQuery, tagPathMap]);
 
   // Helper to test if a tag is a game version tag
   const isVersionTag = (tagName) => {
@@ -1300,6 +1327,7 @@ export function App() {
             onCreateUserTag={handleCreateUserTag}
             onDeleteUserTag={handleDeleteUserTag}
             onBatchSetTags={handleBatchSetTags}
+            onTagStructureChange={setTagStructure}
           />
         </div>
 
@@ -1346,6 +1374,7 @@ export function App() {
                     onToggleFavorite={handleToggleFavorite}
                     pendingAction={pendingActions[item.published_file_id] || null}
                     onRemovePendingAction={handleRemoveFromPlan}
+                    tagPathMap={tagPathMap}
                   />
                 );
               })}
@@ -1394,6 +1423,8 @@ export function App() {
             availableUserTags={allAvailableUserTags}
             availableSteamTags={allAvailableSteamTags}
             sidebarWidth={rightWidth}
+            tagPathMap={tagPathMap}
+            reverseTagPathMap={reverseTagPathMap}
           />
         </div>
 
@@ -1417,6 +1448,8 @@ export function App() {
             onToggleSorted={handleToggleItemSorted}
             selectedSteamTags={selectedTags}
             selectedUserTags={selectedUserTags}
+            tagPathMap={tagPathMap}
+            reverseTagPathMap={reverseTagPathMap}
           />
         </ErrorBoundary>
       )}

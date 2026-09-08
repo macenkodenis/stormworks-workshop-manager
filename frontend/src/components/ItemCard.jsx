@@ -1,5 +1,6 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
+import { getTagDisplayPath } from '../utils/tagUtils';
 
 export function ItemCard({
   item,
@@ -12,7 +13,8 @@ export function ItemCard({
   onOpenDetail,
   onToggleFavorite,
   pendingAction = null,
-  onRemovePendingAction
+  onRemovePendingAction,
+  tagPathMap
 }) {
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -271,6 +273,7 @@ export function ItemCard({
               {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
                 const isUser = type === 'user';
                 const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+                const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
                 
                 let pillStyle = '';
                 if (isActive) {
@@ -286,9 +289,10 @@ export function ItemCard({
                 return (
                   <span
                     key={`${type}-${tag}-${idx}`}
-                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate shrink-0 ${pillStyle}`}
+                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate max-w-full shrink-0 ${pillStyle}`}
+                    title={displayLabel}
                   >
-                    {tag}
+                    {displayLabel}
                   </span>
                 );
               })}

@@ -20,6 +20,7 @@ import {
   Power,
   CircleDashed
 } from 'lucide-react';
+import { getTagDisplayPath, resolveTagFromPath } from '../utils/tagUtils';
 
 export function ItemDetailModal({
   item,
@@ -37,7 +38,9 @@ export function ItemDetailModal({
   onDisableItem,
   onUnsubscribeItem,
   selectedSteamTags = new Set(),
-  selectedUserTags = new Set()
+  selectedUserTags = new Set(),
+  tagPathMap,
+  reverseTagPathMap
 }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [galleryImages, setGalleryImages] = useState([]);
@@ -338,8 +341,10 @@ export function ItemDetailModal({
   // - If the tag already exists (either as user tag or active Steam tag), accept duplicate input without re-adding
   const handleUnifiedAddTag = (e) => {
     if (e) e.preventDefault();
-    const val = newTagInput.trim();
-    if (!val) return;
+    const rawVal = newTagInput.trim();
+    if (!rawVal) return;
+    const resolved = resolveTagFromPath(rawVal, reverseTagPathMap);
+    const val = resolved || rawVal;
 
     // Check if entered value is a full match to any available Steam tag
     const matchedSteamTag = safeAvailableSteamTags.find(
@@ -393,13 +398,21 @@ export function ItemDetailModal({
   // Steam suggestions: available Steam tags that are not currently active on this item
   const filteredSteamSuggestions = safeAvailableSteamTags
     .filter(t => typeof t === 'string' && (!safeSteamTags.includes(t) || deactivatedSet.has(t)))
-    .filter(t => !searchFilter || t.toLowerCase().includes(searchFilter))
+    .filter(t => {
+      if (!searchFilter) return true;
+      const displayPath = getTagDisplayPath(t, 'steam', tagPathMap).toLowerCase();
+      return t.toLowerCase().includes(searchFilter) || displayPath.includes(searchFilter);
+    })
     .map(t => ({ tag: t, type: 'steam' }));
 
   // User suggestions: available user tags that are not currently on this item
   const filteredUserSuggestions = safeAvailableUserTags
     .filter(t => typeof t === 'string' && !safeUserTags.includes(t))
-    .filter(t => !searchFilter || t.toLowerCase().includes(searchFilter))
+    .filter(t => {
+      if (!searchFilter) return true;
+      const displayPath = getTagDisplayPath(t, 'user', tagPathMap).toLowerCase();
+      return t.toLowerCase().includes(searchFilter) || displayPath.includes(searchFilter);
+    })
     .map(t => ({ tag: t, type: 'user' }));
 
   // Combine suggestions: matching user tags and steam tags (deduplicating by name)
@@ -743,13 +756,15 @@ export function ItemDetailModal({
                     ? 'bg-[#1b1e24] text-[#f49e42] border border-[#4d3319] font-medium hover:border-[#f49e42]/60'
                     : 'bg-[#141e29] text-[#66c0f4] border border-[#233a52] font-medium hover:border-[#66c0f4]/60';
                 }
+                const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
 
                 return (
                   <span
                     key={`${type}-${tag}-${deactivated ? 'deact' : 'act'}-${idx}`}
-                    className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 transition select-none ${pillClass}`}
+                    className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 transition select-none max-w-full ${pillClass}`}
+                    title={displayLabel}
                   >
-                    <span>{tag}</span>
+                    <span className="truncate">{displayLabel}</span>
 
                     {/* Action buttons */}
                     {isUser && (
@@ -849,6 +864,7 @@ export function ItemDetailModal({
                   </span>
                   {combinedSuggestions.slice(0, 10).map(({ tag, type }, idx) => {
                     const isSteam = type === 'steam';
+                    const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
                     return (
                       <button
                         key={`sug-${type}-${tag}-${idx}`}
@@ -860,14 +876,14 @@ export function ItemDetailModal({
                             handleAddUserTag(tag);
                           }
                         }}
-                        className={`px-2 py-0.5 rounded-full text-[11px] shrink-0 transition border flex items-center gap-1 cursor-pointer ${
+                        className={`px-2 py-0.5 rounded-full text-[11px] shrink-0 transition border flex items-center gap-1 cursor-pointer max-w-[260px] truncate ${
                           isSteam
                             ? 'bg-[#121c27] hover:bg-[#1a2d42] text-[#8ec8f6] hover:text-white border-[#22394f]'
                             : 'bg-[#241c14] hover:bg-[#33271b] text-[#f4b366] hover:text-white border-[#47341e]'
                         }`}
-                        title={`+ ${tag}`}
+                        title={`+ ${displayLabel}`}
                       >
-                        <span>+ {tag}</span>
+                        <span className="truncate">+ {displayLabel}</span>
                       </button>
                     );
                   })}

@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Play
 } from 'lucide-react';
+import { getTagDisplayPath, resolveTagFromPath } from '../utils/tagUtils';
 
 export function RightActionSidebar({
   selectedCount,
@@ -31,7 +32,9 @@ export function RightActionSidebar({
   onBulkResetTags,
   availableUserTags = [],
   availableSteamTags = [],
-  sidebarWidth = 290
+  sidebarWidth = 290,
+  tagPathMap,
+  reverseTagPathMap
 }) {
   const [bulkTagInput, setBulkTagInput] = useState('');
 
@@ -59,12 +62,20 @@ export function RightActionSidebar({
 
   // Steam suggestions matching filter
   const filteredSteam = safeSteamTags
-    .filter(t => typeof t === 'string' && (!searchFilter || t.toLowerCase().includes(searchFilter)))
+    .filter(t => {
+      if (!searchFilter) return true;
+      const displayPath = getTagDisplayPath(t, 'steam', tagPathMap).toLowerCase();
+      return t.toLowerCase().includes(searchFilter) || displayPath.includes(searchFilter);
+    })
     .map(t => ({ tag: t, type: 'steam' }));
 
   // User suggestions matching filter
   const filteredUser = safeUserTags
-    .filter(t => typeof t === 'string' && (!searchFilter || t.toLowerCase().includes(searchFilter)))
+    .filter(t => {
+      if (!searchFilter) return true;
+      const displayPath = getTagDisplayPath(t, 'user', tagPathMap).toLowerCase();
+      return t.toLowerCase().includes(searchFilter) || displayPath.includes(searchFilter);
+    })
     .map(t => ({ tag: t, type: 'user' }));
 
   // Combine suggestions: custom user tags first, then steam tags, deduplicated
@@ -105,8 +116,10 @@ export function RightActionSidebar({
 
   const handleApplyBulkTag = (e) => {
     if (e) e.preventDefault();
-    const tag = bulkTagInput.trim();
-    if (tag && selectedCount > 0) {
+    const rawTag = bulkTagInput.trim();
+    if (rawTag && selectedCount > 0) {
+      const resolved = resolveTagFromPath(rawTag, reverseTagPathMap);
+      const tag = resolved || rawTag;
       if (onBulkAddTag) {
         onBulkAddTag(tag);
       } else if (onBulkAddUserTag) {
@@ -237,6 +250,7 @@ export function RightActionSidebar({
               <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-0.5">
                 {combinedSuggestions.slice(0, 12).map(({ tag, type }, idx) => {
                   const isSteam = type === 'steam';
+                  const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
                   return (
                     <button
                       key={`bulk-sug-${type}-${tag}-${idx}`}
@@ -250,16 +264,16 @@ export function RightActionSidebar({
                         }
                         setBulkTagInput('');
                       }}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition font-medium flex items-center gap-1 ${
+                      className={`text-xs px-2 py-0.5 rounded-full border transition font-medium flex items-center gap-1 max-w-full truncate ${
                         selectedCount > 0
                           ? isSteam
                             ? 'bg-[#121c27] hover:bg-[#1a2d42] text-[#8ec8f6] hover:text-white border-[#22394f] cursor-pointer'
                             : 'bg-[#241c14] hover:bg-[#33271b] text-[#f4b366] hover:text-white border-[#47341e] cursor-pointer'
                           : 'bg-[#131b24] text-gray-600 border-[#19232f] cursor-not-allowed opacity-50'
                       }`}
-                      title={`+ ${tag}`}
+                      title={`+ ${displayLabel}`}
                     >
-                      <span>+ {tag}</span>
+                      <span className="truncate">+ {displayLabel}</span>
                     </button>
                   );
                 })}
