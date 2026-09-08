@@ -890,70 +890,73 @@ export function ItemDetailModal({
 
         </div>
 
-        {/* Footer: 2 rows with all item metadata */}
+        {/* Footer: 3 columns, each column has its 2 rows aligned via CSS Grid by number/value start */}
         <div className="px-6 py-3 bg-[#0d131b] border-t border-[#1b2838] text-xs text-[#8f98a0]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2.5">
-            {/* Column 1, Row 1: ID мода */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-[#8f98a0]">ID мода:</span>
-              <span className="font-mono text-xs font-semibold text-[#66c0f4] bg-[#141d27] px-2.5 py-0.5 rounded border border-[#22394f]">
-                {item.published_file_id}
-              </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
+            {/* Column 1: ID мода & ID автора */}
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 min-w-0">
+              <span className="text-[11px] text-[#8f98a0] whitespace-nowrap">ID мода:</span>
+              <div className="flex items-center min-w-0">
+                <span className="font-mono text-xs font-semibold text-[#66c0f4] bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] truncate">
+                  {item.published_file_id}
+                </span>
+              </div>
+
+              <span className="text-[11px] text-[#8f98a0] whitespace-nowrap">ID автора:</span>
+              <div className="flex items-center min-w-0">
+                {authorProfileUrl ? (
+                  <a
+                    href={authorProfileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-xs font-semibold text-white hover:text-[#66c0f4] bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] hover:border-[#385d82] flex items-center gap-1 transition group truncate max-w-full"
+                    title="Відкрити профіль автора в Steam"
+                  >
+                    <span className="truncate">{item.creator || 'Не вказано'}</span>
+                    <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-[#66c0f4] shrink-0 transition" />
+                  </a>
+                ) : (
+                  <span className="font-mono text-xs font-semibold text-white bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] truncate">
+                    {item.creator || 'Не вказано'}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Column 2, Row 1: Локальний розмір */}
-            <div className="flex items-center gap-2">
-              <HardDrive className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              <span className="text-[11px] text-[#8f98a0]">Локальний розмір:</span>
-              <span className="font-mono text-xs font-bold text-white">
+            {/* Column 2: Локальний розмір & Розмір у Steam */}
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8f98a0] whitespace-nowrap">
+                <HardDrive className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
+                <span>Локальний розмір:</span>
+              </div>
+              <span className="font-mono text-xs font-bold text-white truncate">
                 {formatBytes(item.local_size_bytes || item.api_file_size)}
               </span>
-            </div>
 
-            {/* Column 3, Row 1: Дата створення */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              <span className="text-[11px] text-[#8f98a0]">Дата створення:</span>
-              <span className="font-mono text-xs font-semibold text-white">
-                {formatDate(item.time_created)}
-              </span>
-            </div>
-
-            {/* Column 1, Row 2: ID автора */}
-            <div className="flex items-center gap-2 truncate">
-              <span className="text-[11px] text-[#8f98a0] shrink-0">ID автора:</span>
-              {authorProfileUrl ? (
-                <a
-                  href={authorProfileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-xs font-semibold text-white hover:text-[#66c0f4] bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] hover:border-[#385d82] flex items-center gap-1 transition group truncate"
-                  title="Відкрити профіль автора в Steam"
-                >
-                  <span className="truncate">{item.creator || 'Не вказано'}</span>
-                  <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-[#66c0f4] shrink-0 transition" />
-                </a>
-              ) : (
-                <span className="font-mono text-xs font-semibold text-white bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] truncate">
-                  {item.creator || 'Не вказано'}
-                </span>
-              )}
-            </div>
-
-            {/* Column 2, Row 2: Розмір у Steam */}
-            <div className="flex items-center gap-2">
-              <Cloud className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              <span className="text-[11px] text-[#8f98a0]">Розмір у Steam:</span>
-              <span className="font-mono text-xs font-bold text-white">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8f98a0] whitespace-nowrap">
+                <Cloud className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
+                <span>Розмір у Steam:</span>
+              </div>
+              <span className="font-mono text-xs font-bold text-white truncate">
                 {formatBytes(item.api_file_size || item.local_size_bytes)}
               </span>
             </div>
 
-            {/* Column 3, Row 2: Останнє оновлення */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              <span className="text-[11px] text-[#8f98a0]">Останнє оновлення:</span>
-              <span className="font-mono text-xs font-semibold text-white">
+            {/* Column 3: Дата створення & Останнє оновлення */}
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8f98a0] whitespace-nowrap">
+                <Calendar className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
+                <span>Дата створення:</span>
+              </div>
+              <span className="font-mono text-xs font-semibold text-white truncate">
+                {formatDate(item.time_created)}
+              </span>
+
+              <div className="flex items-center gap-1.5 text-[11px] text-[#8f98a0] whitespace-nowrap">
+                <Calendar className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
+                <span>Останнє оновлення:</span>
+              </div>
+              <span className="font-mono text-xs font-semibold text-white truncate">
                 {formatDate(item.time_updated || item.local_mtime)}
               </span>
             </div>
