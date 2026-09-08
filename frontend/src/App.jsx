@@ -873,54 +873,6 @@ export function App() {
     }
   };
 
-  // Bulk toggle disabled for selected items
-  const handleBulkToggleDisabled = async (targetState) => {
-    const ids = Array.from(selectedIds);
-    if (!ids.length) return;
-    setItems(prev => prev.map(it => {
-      if (selectedIds.has(it.published_file_id)) {
-        return { ...it, is_disabled: targetState };
-      }
-      return it;
-    }));
-    if (detailItem && selectedIds.has(detailItem.published_file_id)) {
-      setDetailItem(prev => prev ? { ...prev, is_disabled: targetState } : prev);
-    }
-    try {
-      await fetch('/api/items/bulk-set-disabled', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_disabled: targetState, mode: steamMode })
-      });
-    } catch (err) {
-      console.error('Failed to bulk set disabled:', err);
-    }
-  };
-
-  // Bulk toggle subscription for selected items
-  const handleBulkToggleSubscription = async (targetState) => {
-    const ids = Array.from(selectedIds);
-    if (!ids.length) return;
-    setItems(prev => prev.map(it => {
-      if (selectedIds.has(it.published_file_id)) {
-        return { ...it, is_unsubscribed: targetState };
-      }
-      return it;
-    }));
-    if (detailItem && selectedIds.has(detailItem.published_file_id)) {
-      setDetailItem(prev => prev ? { ...prev, is_unsubscribed: targetState } : prev);
-    }
-    try {
-      await fetch('/api/items/bulk-set-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_unsubscribed: targetState, mode: steamMode })
-      });
-    } catch (err) {
-      console.error('Failed to bulk set subscription:', err);
-    }
-  };
-
   // Mod Action Planning Handlers
   const handlePlanAction = (actionType) => {
     if (selectedIds.size === 0) return;
@@ -1233,32 +1185,6 @@ export function App() {
     });
     return sum;
   }, [items, selectedIds]);
-
-  // Open Dry-Run Modal
-  const handleOpenDryRun = async () => {
-    const ids = Array.from(selectedIds);
-    if (!ids.length) return;
-    try {
-      const [planRes, scriptRes] = await Promise.all([
-        fetch('/api/unsubscribe/dry-run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_ids: ids })
-        }).then(r => r.json()),
-        fetch('/api/unsubscribe/script', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_ids: ids })
-        }).then(r => r.json())
-      ]);
-
-      setDryRunPlan(planRes);
-      setScriptText(scriptRes.script || '');
-      setIsDryRunModalOpen(true);
-    } catch (err) {
-      console.error('Dry-run request failed:', err);
-    }
-  };
 
   // List of currently selected item objects
   const selectedItemsList = useMemo(() => {

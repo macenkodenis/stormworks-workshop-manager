@@ -5,7 +5,6 @@ import {
   HardDrive,
   Cloud,
   Calendar,
-  User,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,

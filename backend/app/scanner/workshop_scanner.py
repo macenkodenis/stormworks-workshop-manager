@@ -77,8 +77,26 @@ def scan_local_workshop() -> Dict[str, Any]:
     cur = conn.cursor()
     now = int(time.time())
 
-    for item_id, it in selected_items.items():
-        cur.execute("""
+    batch_params = [
+        (
+            item_id,
+            APP_ID,
+            it["local_path"],
+            it["local_size_bytes"],
+            it["local_mtime"],
+            1,
+            it["local_manifest_size"],
+            it["local_manifest_timeupdated"],
+            it["local_metadata"],
+            it["local_preview_file"],
+            now,
+            now
+        )
+        for item_id, it in selected_items.items()
+    ]
+
+    if batch_params:
+        cur.executemany("""
         INSERT INTO workshop_items (
             published_file_id, app_id, local_path, local_size_bytes, local_mtime,
             is_present_locally, local_manifest_size, local_manifest_timeupdated,
@@ -96,20 +114,7 @@ def scan_local_workshop() -> Dict[str, Any]:
             local_metadata = excluded.local_metadata,
             local_preview_path = COALESCE(workshop_items.local_preview_path, excluded.local_preview_path),
             last_verified_at = excluded.last_verified_at
-        """, (
-            item_id,
-            APP_ID,
-            it["local_path"],
-            it["local_size_bytes"],
-            it["local_mtime"],
-            1,
-            it["local_manifest_size"],
-            it["local_manifest_timeupdated"],
-            it["local_metadata"],
-            it["local_preview_file"],
-            now,
-            now
-        ))
+        """, batch_params)
 
     conn.commit()
     conn.close()

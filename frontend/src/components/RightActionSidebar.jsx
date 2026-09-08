@@ -23,7 +23,6 @@ export function RightActionSidebar({
   pendingActionsCount = 0,
   onOpenPlanModal,
   onClearPlan,
-  pendingActions = {},
   selectedItems = [],
   filteredCount,
   onBulkAddTag,

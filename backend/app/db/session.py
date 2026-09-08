@@ -3,8 +3,10 @@ from typing import List, Dict, Any, Optional
 from ..config import DB_PATH
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
     return conn
 
 def init_db():
@@ -54,6 +56,7 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_is_present ON workshop_items(is_present_locally);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_api_time_updated ON workshop_items(api_time_updated);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_local_size ON workshop_items(local_size_bytes);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_is_unsubscribed ON workshop_items(is_unsubscribed);")
 
     # Add columns if they do not exist
     cur.execute("PRAGMA table_info(workshop_items);")
@@ -74,6 +77,8 @@ def init_db():
     if "is_sorted" not in existing_cols:
         cur.execute("ALTER TABLE workshop_items ADD COLUMN is_sorted INTEGER DEFAULT NULL;")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_is_sorted ON workshop_items(is_sorted);")
+    if "api_gallery_json" not in existing_cols:
+        cur.execute("ALTER TABLE workshop_items ADD COLUMN api_gallery_json TEXT;")
 
     # Table for app settings / preferences (e.g. tag structure, groups, ordering)
     cur.execute("""

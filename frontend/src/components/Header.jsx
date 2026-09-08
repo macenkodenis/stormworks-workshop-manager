@@ -1,7 +1,6 @@
 import React from 'react';
 import stormworksIcon from '../assets/stormworks_icon.png';
 import {
-  Package,
   Search,
   ArrowUpDown,
   LayoutGrid,

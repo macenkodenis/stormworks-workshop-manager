@@ -14,7 +14,6 @@ from .db.session import init_db, get_connection
 from .scanner.workshop_scanner import scan_local_workshop
 from .steam_api.client import fetch_steam_api_details
 from .cache.preview_cache import cache_previews_for_items
-from .unsubscribe.provider import UnsubscribeProvider
 from .steam_api.steam_service import SteamService
 
 app = FastAPI(title="Stormworks Workshop Manager API", version="1.0.0")
@@ -178,7 +177,7 @@ def list_items(
             "description": r["api_description"],
             "creator": r["api_creator"],
             "preview_url": r["api_preview_url"],
-            "has_local_preview": bool(r["local_preview_path"] and Path(r["local_preview_path"]).exists()),
+            "has_local_preview": bool(r["local_preview_path"]),
             "time_created": r["api_time_created"],
             "time_updated": r["api_time_updated"],
             "api_file_size": r["api_file_size"],
@@ -199,7 +198,7 @@ def list_items(
 def get_preview_image(item_id: str):
     preview_file = PREVIEWS_DIR / f"{item_id}.jpg"
     if preview_file.exists():
-        return FileResponse(preview_file, media_type="image/jpeg")
+        return FileResponse(preview_file, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
     
     # Check if local item directory has a preview
     conn = get_connection()
@@ -209,21 +208,9 @@ def get_preview_image(item_id: str):
     conn.close()
 
     if row and row["local_preview_path"] and Path(row["local_preview_path"]).exists():
-        return FileResponse(row["local_preview_path"])
+        return FileResponse(row["local_preview_path"], headers={"Cache-Control": "public, max-age=86400"})
 
     raise HTTPException(status_code=404, detail="Preview not found")
-
-class BulkItemRequest(BaseModel):
-    item_ids: List[str]
-
-@app.post("/api/unsubscribe/dry-run")
-def dry_run_unsubscribe(payload: BulkItemRequest):
-    return UnsubscribeProvider.generate_dry_run_plan(payload.item_ids)
-
-@app.post("/api/unsubscribe/script")
-def get_unsubscribe_script(payload: BulkItemRequest):
-    script = UnsubscribeProvider.generate_browser_helper_script(payload.item_ids)
-    return {"script": script}
 
 # Serve frontend static build if present
 
