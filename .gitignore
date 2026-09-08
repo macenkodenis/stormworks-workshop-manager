@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Local data / caches
+data/previews/
+data/stormworks_workshop.db*
+
+# Build outputs
+backend/static/assets/
+backend/static/index.html

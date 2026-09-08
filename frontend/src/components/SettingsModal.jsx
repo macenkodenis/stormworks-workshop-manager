@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { X, Sliders, Moon, Globe, RotateCcw, MousePointerClick } from 'lucide-react';
+
+export function SettingsModal({
+  isOpen,
+  onClose,
+  showControlHints = true,
+  onToggleShowControlHints
+}) {
+  // Zoom state: 75% to 125%, default 100%
+  const [zoom, setZoom] = useState(() => {
+    const saved = localStorage.getItem('sw_ui_zoom');
+    return saved ? Number(saved) : 100;
+  });
+
+  // Stubs for future functionality
+  const [highContrast, setHighContrast] = useState(false);
+  const [language, setLanguage] = useState('uk');
+
+  useEffect(() => {
+    // Apply zoom to document.documentElement
+    document.documentElement.style.zoom = `${zoom}%`;
+    localStorage.setItem('sw_ui_zoom', String(zoom));
+  }, [zoom]);
+
+  // Handle escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="w-full max-w-md bg-[#1b2838] border border-[#2a475e] rounded-lg shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 bg-[#171d25] border-b border-[#2a475e]">
+          <div className="flex items-center gap-2">
+            <Sliders className="w-5 h-5 text-[#66c0f4]" />
+            <h2 className="text-base font-semibold text-white">Налаштування</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#2a475e] transition"
+            title="Закрити"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-6">
+          
+          {/* Setting 1: UI Zoom */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <label htmlFor="zoom-range" className="font-medium text-white flex items-center gap-2">
+                Масштаб інтерфейсу
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-semibold text-[#66c0f4] bg-[#101822] px-2 py-0.5 rounded border border-[#233547]">
+                  {zoom}%
+                </span>
+                {zoom !== 100 && (
+                  <button
+                    onClick={() => setZoom(100)}
+                    title="Скинути до 100%"
+                    className="text-gray-400 hover:text-white p-1 hover:bg-[#223344] rounded transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">75%</span>
+              <input
+                id="zoom-range"
+                type="range"
+                min="75"
+                max="125"
+                step="5"
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full h-1.5 bg-[#101822] rounded-lg appearance-none cursor-pointer accent-[#66c0f4]"
+              />
+              <span className="text-xs text-gray-400">125%</span>
+            </div>
+            <p className="text-[11px] text-gray-400">
+              Налаштування розміру елементів додатку та тексту
+            </p>
+          </div>
+
+          <div className="h-px bg-[#223242]" />
+
+          {/* Setting 2: Control Hints Overlay Toggle */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <MousePointerClick className="w-4 h-4 text-[#66c0f4]" />
+                <span className="text-sm font-medium text-white">Підказки по керуванню</span>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Відображати плаваюче вікно гарячих клавіш у зоні карток модів
+              </p>
+            </div>
+
+            {/* Toggle switch */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showControlHints}
+              onClick={() => onToggleShowControlHints && onToggleShowControlHints(!showControlHints)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                showControlHints ? 'bg-[#66c0f4]' : 'bg-[#22303e]'
+              }`}
+              title={showControlHints ? 'Вимкнути підказки' : 'Увімкнути підказки'}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  showControlHints ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="h-px bg-[#223242]" />
+
+          {/* Setting 2: High Contrast (Stub) */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Moon className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-white">Висока контрастність</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.2 bg-[#2a475e] text-[#66c0f4] rounded">
+                  Скоро
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Підвищена чіткість меж, рамок та акцентів інтерфейсу
+              </p>
+            </div>
+
+            {/* Toggle switch (Stub) */}
+            <button
+              type="button"
+              disabled
+              onClick={() => setHighContrast(!highContrast)}
+              className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-[#22303e] opacity-60 transition-colors duration-200 ease-in-out focus:outline-none"
+              title="Функція в розробці"
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-gray-400 shadow-lg ring-0 transition duration-200 ease-in-out ${
+                  highContrast ? 'translate-x-4 bg-[#66c0f4]' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="h-px bg-[#223242]" />
+
+          {/* Setting 3: Language Selector (Stub) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-white">Мова інтерфейсу</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.2 bg-[#2a475e] text-[#66c0f4] rounded">
+                  Скоро
+                </span>
+              </div>
+            </div>
+
+            <select
+              value={language}
+              disabled
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full bg-[#101822] border border-[#233547] text-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none opacity-60 cursor-not-allowed"
+              title="Функція в розробці"
+            >
+              <option value="uk">Українська</option>
+              <option value="en">English</option>
+            </select>
+            <p className="text-[11px] text-gray-400">
+              Локалізація та переклад пунктів керування
+            </p>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 bg-[#171d25] border-t border-[#2a475e] flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs font-semibold rounded shadow transition"
+          >
+            Готово
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
