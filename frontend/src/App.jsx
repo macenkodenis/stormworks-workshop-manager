@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { TagsSidebar } from './components/TagsSidebar';
 import { RightActionSidebar } from './components/RightActionSidebar';
@@ -55,13 +55,6 @@ export function App() {
     return saved ? Number(saved) : 290;
   });
 
-  // Apply saved zoom immediately on application mount
-  useEffect(() => {
-    const savedZoom = localStorage.getItem('sw_ui_zoom');
-    if (savedZoom) {
-      document.documentElement.style.zoom = `${savedZoom}%`;
-    }
-  }, []);
 
   const isResizingLeftRef = useRef(false);
   const isResizingRightRef = useRef(false);
@@ -119,11 +112,75 @@ export function App() {
     };
   }, [leftWidth, rightWidth]);
 
-  // Sidebar sticky positioning: stays below sticky header (4.25rem) and reaches 12px from bottom (100vh - 5rem)
-  const stickySidebarStyle = {
+  // Dynamic Sticky Sidebar geometry: dynamically anchors sidebar bottom to the screen bottom across all zoom levels
+  const [stickySidebarStyle, setStickySidebarStyle] = useState({
     top: '4.25rem',
     height: 'calc(100vh - 5rem)'
-  };
+  });
+
+  const updateSidebarGeometry = useCallback(() => {
+    const zoomStr = document.documentElement.style.zoom;
+    let z = 1;
+    if (zoomStr) {
+      const parsed = parseFloat(zoomStr);
+      if (!isNaN(parsed) && parsed > 0) {
+        z = zoomStr.endsWith('%') ? parsed / 100 : parsed;
+      }
+    }
+
+    const header = document.querySelector('header');
+    const headerBottomVisual = header ? header.getBoundingClientRect().bottom : (53 * z);
+    const cssHeaderBottom = headerBottomVisual / z;
+    const cssTop = cssHeaderBottom + 12; // 12px gap below header (py-3)
+    const cssViewportH = window.innerHeight / z;
+    // Keep 12px padding above bottom of screen (scaled proportionally in CSS pixels)
+    const cssHeight = Math.max(cssViewportH - cssTop - 12, 200);
+
+    setStickySidebarStyle({
+      top: `${cssTop}px`,
+      height: `${cssHeight}px`
+    });
+  }, []);
+
+  // Initialize saved zoom and observe changes to window size, zoom and header dimensions
+  useEffect(() => {
+    const savedZoom = localStorage.getItem('sw_ui_zoom');
+    if (savedZoom) {
+      document.documentElement.style.zoom = `${savedZoom}%`;
+    }
+
+    updateSidebarGeometry();
+
+    window.addEventListener('resize', updateSidebarGeometry);
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'style') {
+          updateSidebarGeometry();
+        }
+      }
+    });
+
+    mutationObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style']
+    });
+
+    let headerObserver = null;
+    const headerEl = document.querySelector('header');
+    if (headerEl && window.ResizeObserver) {
+      headerObserver = new ResizeObserver(() => {
+        updateSidebarGeometry();
+      });
+      headerObserver.observe(headerEl);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateSidebarGeometry);
+      mutationObserver.disconnect();
+      if (headerObserver) headerObserver.disconnect();
+    };
+  }, [updateSidebarGeometry]);
 
   // Tag Filtering (Steam tags)
   const [selectedTags, setSelectedTags] = useState(new Set());
