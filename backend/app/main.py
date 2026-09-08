@@ -15,6 +15,7 @@ from .scanner.workshop_scanner import scan_local_workshop
 from .steam_api.client import fetch_steam_api_details
 from .cache.preview_cache import cache_previews_for_items
 from .unsubscribe.provider import UnsubscribeProvider
+from .steam_api.steam_service import SteamService
 
 app = FastAPI(title="Stormworks Workshop Manager API", version="1.0.0")
 
@@ -592,11 +593,20 @@ def save_tag_structure(payload: TagStructurePayload):
     conn.close()
     return {"status": "ok"}
 
+@app.get("/api/steam/status")
+def get_steam_status():
+    return SteamService.get_status()
+
+@app.post("/api/steam/restart")
+async def restart_steam_with_debugging():
+    return await SteamService.restart_steam_with_debugging()
+
 class ToggleDisabledPayload(BaseModel):
     is_disabled: Optional[bool] = None
+    mode: Optional[str] = "hybrid"
 
 @app.post("/api/items/{item_id}/toggle-disabled")
-def toggle_item_disabled(item_id: str, payload: Optional[ToggleDisabledPayload] = None):
+async def toggle_item_disabled(item_id: str, payload: Optional[ToggleDisabledPayload] = None):
     conn = get_connection()
     cur = conn.cursor()
     if payload and payload.is_disabled is not None:
@@ -606,36 +616,33 @@ def toggle_item_disabled(item_id: str, payload: Optional[ToggleDisabledPayload] 
         row = cur.fetchone()
         curr = row["is_disabled"] if row and "is_disabled" in row.keys() and row["is_disabled"] else 0
         target = 0 if curr else 1
-
-    cur.execute("UPDATE workshop_items SET is_disabled = ? WHERE published_file_id = ?", (target, item_id))
-    conn.commit()
     conn.close()
-    return {"status": "ok", "item_id": item_id, "is_disabled": bool(target)}
+
+    mode = payload.mode if payload and payload.mode else "hybrid"
+    res = await SteamService.set_items_disabled([item_id], bool(target), mode=mode)
+    return {"status": "ok", "item_id": item_id, "is_disabled": bool(target), "mode_used": res.get("mode_used")}
 
 class BulkDisabledPayload(BaseModel):
     item_ids: List[str]
     is_disabled: bool
+    mode: Optional[str] = "hybrid"
 
 @app.post("/api/items/bulk-set-disabled")
-def bulk_set_disabled(payload: BulkDisabledPayload):
+async def bulk_set_disabled(payload: BulkDisabledPayload):
     if not payload.item_ids:
         return {"status": "ok", "affected": 0, "is_disabled": payload.is_disabled}
-    conn = get_connection()
-    cur = conn.cursor()
-    target = 1 if payload.is_disabled else 0
-    cur.executemany("UPDATE workshop_items SET is_disabled = ? WHERE published_file_id = ?", [(target, i) for i in payload.item_ids])
-    conn.commit()
-    conn.close()
-    return {"status": "ok", "affected": len(payload.item_ids), "is_disabled": payload.is_disabled}
+    mode = payload.mode or "hybrid"
+    res = await SteamService.set_items_disabled(payload.item_ids, payload.is_disabled, mode=mode)
+    return {"status": "ok", "affected": len(payload.item_ids), "is_disabled": payload.is_disabled, "mode_used": res.get("mode_used")}
 
 class ToggleSubscriptionPayload(BaseModel):
     is_unsubscribed: Optional[bool] = None
+    mode: Optional[str] = "hybrid"
 
 @app.post("/api/items/{item_id}/toggle-subscription")
-def toggle_item_subscription(item_id: str, payload: Optional[ToggleSubscriptionPayload] = None):
+async def toggle_item_subscription(item_id: str, payload: Optional[ToggleSubscriptionPayload] = None):
     conn = get_connection()
     cur = conn.cursor()
-    now = int(time.time())
     if payload and payload.is_unsubscribed is not None:
         target = 1 if payload.is_unsubscribed else 0
     else:
@@ -643,33 +650,25 @@ def toggle_item_subscription(item_id: str, payload: Optional[ToggleSubscriptionP
         row = cur.fetchone()
         curr = row["is_unsubscribed"] if row and "is_unsubscribed" in row.keys() and row["is_unsubscribed"] else 0
         target = 0 if curr else 1
-
-    unsub_time = now if target else None
-    cur.execute("UPDATE workshop_items SET is_unsubscribed = ?, unsubscribed_at = ? WHERE published_file_id = ?", (target, unsub_time, item_id))
-    conn.commit()
     conn.close()
-    return {"status": "ok", "item_id": item_id, "is_unsubscribed": bool(target)}
+
+    mode = payload.mode if payload and payload.mode else "hybrid"
+    # target = 1 means unsubscribing (is_subscribed = False), target = 0 means subscribing (is_subscribed = True)
+    res = await SteamService.set_items_subscription([item_id], is_subscribed=(target == 0), mode=mode)
+    return {"status": "ok", "item_id": item_id, "is_unsubscribed": bool(target), "mode_used": res.get("mode_used")}
 
 class BulkSubscriptionPayload(BaseModel):
     item_ids: List[str]
     is_unsubscribed: bool
+    mode: Optional[str] = "hybrid"
 
 @app.post("/api/items/bulk-set-subscription")
-def bulk_set_subscription(payload: BulkSubscriptionPayload):
+async def bulk_set_subscription(payload: BulkSubscriptionPayload):
     if not payload.item_ids:
         return {"status": "ok", "affected": 0, "is_unsubscribed": payload.is_unsubscribed}
-    conn = get_connection()
-    cur = conn.cursor()
-    target = 1 if payload.is_unsubscribed else 0
-    now = int(time.time())
-    unsub_time = now if target else None
-    cur.executemany(
-        "UPDATE workshop_items SET is_unsubscribed = ?, unsubscribed_at = ? WHERE published_file_id = ?",
-        [(target, unsub_time, i) for i in payload.item_ids]
-    )
-    conn.commit()
-    conn.close()
-    return {"status": "ok", "affected": len(payload.item_ids), "is_unsubscribed": payload.is_unsubscribed}
+    mode = payload.mode or "hybrid"
+    res = await SteamService.set_items_subscription(payload.item_ids, is_subscribed=(not payload.is_unsubscribed), mode=mode)
+    return {"status": "ok", "affected": len(payload.item_ids), "is_unsubscribed": payload.is_unsubscribed, "mode_used": res.get("mode_used")}
 
 class ToggleSortedPayload(BaseModel):
     is_sorted: Optional[bool] = None

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sliders, Moon, Globe, RotateCcw, MousePointerClick } from 'lucide-react';
+import { X, Sliders, Moon, Globe, RotateCcw, MousePointerClick, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function SettingsModal({
   isOpen,
   onClose,
   showControlHints = true,
-  onToggleShowControlHints
+  onToggleShowControlHints,
+  steamStatus = null,
+  steamMode = 'hybrid',
+  onSetSteamMode,
+  onRestartSteam,
+  isRestartingSteam = false
 }) {
   // Zoom state: 75% to 125%, default 100%
   const [zoom, setZoom] = useState(() => {
@@ -136,6 +141,77 @@ export function SettingsModal({
                 }`}
               />
             </button>
+          </div>
+
+          <div className="h-px bg-[#223242]" />
+
+          {/* Setting: Steam Integration & Execution Mode */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">Інтеграція зі Steam</span>
+                  {steamStatus?.cef_debugging ? (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 bg-[#172e1e] text-[#a4d053] border border-[#2b5936] rounded">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Режим А активний
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 bg-[#2b2216] text-[#e5a93c] border border-[#523e1f] rounded">
+                      <AlertCircle className="w-3 h-3" />
+                      Режим Б (Файловий)
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Керування підписками та відключенням модів через Steam API
+                </p>
+              </div>
+            </div>
+
+            {/* Mode Selector */}
+            <div className="space-y-1">
+              <label className="text-[11px] text-gray-300 font-medium">Режим виконання:</label>
+              <select
+                value={steamMode}
+                onChange={(e) => onSetSteamMode && onSetSteamMode(e.target.value)}
+                className="w-full bg-[#101822] border border-[#233547] text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#66c0f4]"
+              >
+                <option value="hybrid">Автоматичний (Гібридний) — пріоритет SteamClient RPC</option>
+                <option value="mode_a">Примусово: Режим А (SteamClient RPC WebSocket)</option>
+                <option value="mode_b">Примусово: Режим Б (Direct VDF & Filesystem)</option>
+              </select>
+            </div>
+
+            {/* Status & Restart Steam Button */}
+            <div className="p-2.5 rounded-md bg-[#101822] border border-[#233547] space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-gray-400">Статус клієнта Steam:</span>
+                <span className="font-semibold text-white">
+                  {steamStatus?.cef_debugging
+                    ? '● Підключено з відлагодженням (порт 8080)'
+                    : steamStatus?.is_running
+                    ? '○ Працює у звичайному режимі'
+                    : '✕ Клієнт Steam не виявлено'}
+                </span>
+              </div>
+
+              {!steamStatus?.cef_debugging && (
+                <button
+                  type="button"
+                  disabled={isRestartingSteam}
+                  onClick={onRestartSteam}
+                  className="w-full mt-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded bg-[#203245] hover:bg-[#2c4560] active:bg-[#182635] text-xs font-semibold text-[#66c0f4] border border-[#314b66] transition disabled:opacity-50 disabled:cursor-not-allowed shadow"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRestartingSteam ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isRestartingSteam
+                      ? 'Перезапуск Steam з прапорцем...'
+                      : 'Перезапустити Steam з прапорцем відлагодження'}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="h-px bg-[#223242]" />

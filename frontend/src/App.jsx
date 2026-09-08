@@ -137,8 +137,49 @@ export function App() {
   const [dryRunPlan, setDryRunPlan] = useState(null);
   const [scriptText, setScriptText] = useState('');
   const [isDryRunModalOpen, setIsDryRunModalOpen] = useState(false);
+  const [isExecutingDryRun, setIsExecutingDryRun] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+
+  // Steam Integration State
+  const [steamMode, setSteamMode] = useState(() => localStorage.getItem('sw_steam_mode') || 'hybrid');
+  const [steamStatus, setSteamStatus] = useState(null);
+  const [isRestartingSteam, setIsRestartingSteam] = useState(false);
+
+  const handleSetSteamMode = (mode) => {
+    setSteamMode(mode);
+    localStorage.setItem('sw_steam_mode', mode);
+  };
+
+  const fetchSteamStatus = async () => {
+    try {
+      const res = await fetch('/api/steam/status').then(r => r.json());
+      setSteamStatus(res);
+    } catch (err) {
+      console.error('Failed to fetch steam status:', err);
+    }
+  };
+
+  const handleRestartSteam = async () => {
+    setIsRestartingSteam(true);
+    try {
+      const res = await fetch('/api/steam/restart', { method: 'POST' }).then(r => r.json());
+      if (res.status === 'ok') {
+        setTimeout(fetchSteamStatus, 2000);
+        setTimeout(fetchSteamStatus, 5000);
+      }
+    } catch (err) {
+      console.error('Failed to restart steam:', err);
+    } finally {
+      setIsRestartingSteam(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSteamStatus();
+    const interval = setInterval(fetchSteamStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initial load
   const loadData = async () => {
@@ -755,7 +796,7 @@ export function App() {
       await fetch(`/api/items/${itemId}/toggle-disabled`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_disabled: targetState })
+        body: JSON.stringify({ is_disabled: targetState, mode: steamMode })
       });
     } catch (err) {
       console.error('Failed to toggle disabled:', err);
@@ -777,7 +818,7 @@ export function App() {
       await fetch(`/api/items/${itemId}/toggle-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_unsubscribed: targetState })
+        body: JSON.stringify({ is_unsubscribed: targetState, mode: steamMode })
       });
     } catch (err) {
       console.error('Failed to toggle subscription:', err);
@@ -823,7 +864,7 @@ export function App() {
       await fetch('/api/items/bulk-set-disabled', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_disabled: targetState })
+        body: JSON.stringify({ item_ids: ids, is_disabled: targetState, mode: steamMode })
       });
     } catch (err) {
       console.error('Failed to bulk set disabled:', err);
@@ -847,10 +888,68 @@ export function App() {
       await fetch('/api/items/bulk-set-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_ids: ids, is_unsubscribed: targetState })
+        body: JSON.stringify({ item_ids: ids, is_unsubscribed: targetState, mode: steamMode })
       });
     } catch (err) {
       console.error('Failed to bulk set subscription:', err);
+    }
+  };
+
+  // Execute Unsubscribe from DryRunModal
+  const handleExecuteDryRunUnsubscribe = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setIsExecutingDryRun(true);
+    try {
+      await fetch('/api/items/bulk-set-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_ids: ids, is_unsubscribed: true, mode: steamMode })
+      });
+      setItems(prev => prev.map(it => {
+        if (selectedIds.has(it.published_file_id)) {
+          return { ...it, is_unsubscribed: true };
+        }
+        return it;
+      }));
+      if (detailItem && selectedIds.has(detailItem.published_file_id)) {
+        setDetailItem(prev => prev ? { ...prev, is_unsubscribed: true } : prev);
+      }
+      setIsDryRunModalOpen(false);
+      fetchSteamStatus();
+    } catch (err) {
+      console.error('Failed to execute unsubscribe:', err);
+    } finally {
+      setIsExecutingDryRun(false);
+    }
+  };
+
+  // Execute Disable from DryRunModal
+  const handleExecuteDryRunDisable = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setIsExecutingDryRun(true);
+    try {
+      await fetch('/api/items/bulk-set-disabled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_ids: ids, is_disabled: true, mode: steamMode })
+      });
+      setItems(prev => prev.map(it => {
+        if (selectedIds.has(it.published_file_id)) {
+          return { ...it, is_disabled: true };
+        }
+        return it;
+      }));
+      if (detailItem && selectedIds.has(detailItem.published_file_id)) {
+        setDetailItem(prev => prev ? { ...prev, is_disabled: true } : prev);
+      }
+      setIsDryRunModalOpen(false);
+      fetchSteamStatus();
+    } catch (err) {
+      console.error('Failed to execute disable:', err);
+    } finally {
+      setIsExecutingDryRun(false);
     }
   };
 
@@ -1247,7 +1346,11 @@ export function App() {
         <DryRunModal
           plan={dryRunPlan}
           onClose={() => setIsDryRunModalOpen(false)}
-          scriptText={scriptText}
+          onExecuteUnsubscribe={handleExecuteDryRunUnsubscribe}
+          onExecuteDisable={handleExecuteDryRunDisable}
+          isExecuting={isExecutingDryRun}
+          steamMode={steamMode}
+          steamStatus={steamStatus}
         />
       )}
 
@@ -1257,6 +1360,11 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         showControlHints={showControlHints}
         onToggleShowControlHints={handleToggleShowControlHints}
+        steamStatus={steamStatus}
+        steamMode={steamMode}
+        onSetSteamMode={handleSetSteamMode}
+        onRestartSteam={handleRestartSteam}
+        isRestartingSteam={isRestartingSteam}
       />
     </div>
   );

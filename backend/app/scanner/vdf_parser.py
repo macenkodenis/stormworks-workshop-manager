@@ -35,3 +35,20 @@ def parse_vdf(content: str) -> Dict[str, Any]:
 
     parsed, _ = parse_block(0)
     return parsed
+
+def dumps_vdf(data: Dict[str, Any], indent_level: int = 0) -> str:
+    """
+    Serializes a Python dictionary to Valve KeyValues VDF format.
+    """
+    lines = []
+    prefix = "\t" * indent_level
+    for k, v in data.items():
+        if isinstance(v, dict):
+            lines.append(f'{prefix}"{k}"')
+            lines.append(f'{prefix}{{')
+            lines.append(dumps_vdf(v, indent_level + 1))
+            lines.append(f'{prefix}}}')
+        else:
+            lines.append(f'{prefix}"{k}"\t\t"{v}"')
+    return "\n".join(lines)
+

@@ -36,4 +36,4 @@ echo "Open your browser at: http://localhost:8000"
 echo "Press Ctrl+C to stop."
 echo "--------------------------------------------------"
 
-"$PROJECT_DIR/backend/venv/bin/uvicorn" app.main:app --app-dir "$PROJECT_DIR/backend" --host 127.0.0.1 --port 8000
+"$PROJECT_DIR/backend/venv/bin/uvicorn" app.main:app --app-dir "$PROJECT_DIR/backend" --host 127.0.0.1 --port 8000 --reload
