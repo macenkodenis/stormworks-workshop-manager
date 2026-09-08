@@ -42,6 +42,7 @@ export function TagsSidebar({
   // Node: { id, type: 'tag' | 'group', tag?: string, tagType?: 'steam' | 'user', name?: string, children?: Node[] }
   const [tree, setTree] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [tagFilterQuery, setTagFilterQuery] = useState('');
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [renameError, setRenameError] = useState('');
@@ -181,19 +182,43 @@ export function TagsSidebar({
     });
   }, [generalSteamTags, userTagsWithCounts]);
 
-  // Visibility check: Steam tags with 0 items are hidden from sidebar, but user tags with 0 remain
+  // Visibility check: Steam tags with 0 items are hidden from sidebar, but user tags with 0 remain; plus tagFilterQuery
   const isNodeVisible = (node) => {
+    const q = tagFilterQuery.trim().toLowerCase();
     if (node.type === 'tag') {
+      const matchesText = !q || (node.tag && node.tag.toLowerCase().includes(q));
       if (node.tagType === 'steam') {
-        return activeSteamTagNames.has(node.tag);
+        return matchesText && activeSteamTagNames.has(node.tag);
       }
-      return true; // user tags always visible
+      return matchesText;
     }
     if (node.type === 'group') {
-      if (!node.children || node.children.length === 0) return true;
-      return node.children.some(child => isNodeVisible(child));
+      const groupMatches = !q || (node.name && node.name.toLowerCase().includes(q));
+      if (!node.children || node.children.length === 0) return groupMatches;
+      return groupMatches || node.children.some(child => isNodeVisible(child));
     }
     return false;
+  };
+
+  const getAllGroupIds = (nodes) => {
+    let ids = [];
+    nodes.forEach(n => {
+      if (n.type === 'group') {
+        ids.push(n.id);
+        if (Array.isArray(n.children)) {
+          ids = ids.concat(getAllGroupIds(n.children));
+        }
+      }
+    });
+    return ids;
+  };
+
+  const handleExpandAll = () => {
+    setCollapsedGroups(new Set());
+  };
+
+  const handleCollapseAll = () => {
+    setCollapsedGroups(new Set(getAllGroupIds(tree)));
   };
 
   // Helper to extract all tags recursively inside a node
@@ -1088,6 +1113,45 @@ export function TagsSidebar({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Quick Tag Filter Input & Folder Controls */}
+          <div className="flex items-center gap-1.5 mb-2 px-0.5">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Швидкий фільтр тегів..."
+                value={tagFilterQuery}
+                onChange={(e) => setTagFilterQuery(e.target.value)}
+                className="w-full bg-[#101822] border border-[#233547] focus:border-[#66c0f4] rounded px-2 py-0.5 text-[11px] text-white placeholder-gray-500 focus:outline-none"
+              />
+              {tagFilterQuery && (
+                <button
+                  type="button"
+                  onClick={() => setTagFilterQuery('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer"
+                  title="Очистити фільтр тегів"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleExpandAll}
+              title="Розгорнути всі папки"
+              className="p-1 rounded bg-[#101822] border border-[#233547] text-gray-400 hover:text-[#66c0f4] hover:border-[#334d66] transition cursor-pointer"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleCollapseAll}
+              title="Згорнути всі папки"
+              className="p-1 rounded bg-[#101822] border border-[#233547] text-gray-400 hover:text-[#66c0f4] hover:border-[#334d66] transition cursor-pointer"
+            >
+              <Folder className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Quick Create Input */}

@@ -92,7 +92,7 @@ export function SettingsModal({
             </div>
             
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">75%</span>
+              <span className="text-xs text-gray-400 font-mono">75%</span>
               <input
                 id="zoom-range"
                 type="range"
@@ -103,10 +103,29 @@ export function SettingsModal({
                 onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-full h-1.5 bg-[#101822] rounded-lg appearance-none cursor-pointer accent-[#66c0f4]"
               />
-              <span className="text-xs text-gray-400">125%</span>
+              <span className="text-xs text-gray-400 font-mono">125%</span>
             </div>
+
+            {/* Quick Zoom Preset Buttons */}
+            <div className="flex items-center gap-1.5 pt-1">
+              {[75, 90, 100, 110, 125].map(preset => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setZoom(preset)}
+                  className={`flex-1 py-1 rounded text-xs font-mono font-medium transition cursor-pointer border ${
+                    zoom === preset
+                      ? 'bg-[#2a475e] text-[#66c0f4] border-[#66c0f4] shadow'
+                      : 'bg-[#101822] text-gray-400 border-[#233547] hover:bg-[#1a2636] hover:text-white'
+                  }`}
+                >
+                  {preset}%
+                </button>
+              ))}
+            </div>
+
             <p className="text-[11px] text-gray-400">
-              Налаштування розміру елементів додатку та тексту
+              Налаштування розміру елементів додатку та тексту. Бічні панелі залишаються закріпленими по краях екрана.
             </p>
           </div>
 

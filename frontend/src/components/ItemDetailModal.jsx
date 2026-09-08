@@ -17,7 +17,9 @@ import {
   Trash2,
   PowerOff,
   Power,
-  CircleDashed
+  CircleDashed,
+  Copy,
+  Check
 } from 'lucide-react';
 import { getTagDisplayPath, resolveTagFromPath } from '../utils/tagUtils';
 
@@ -39,10 +41,39 @@ export function ItemDetailModal({
   selectedSteamTags = new Set(),
   selectedUserTags = new Set(),
   tagPathMap,
-  reverseTagPathMap
+  reverseTagPathMap,
+  onNavigatePrev,
+  onNavigateNext,
+  hasNavigation = false,
+  currentIndex,
+  totalCount
 }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [galleryImages, setGalleryImages] = useState([]);
+  const [copiedField, setCopiedField] = useState(null);
+
+  const handleCopy = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(String(text));
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 1800);
+  };
+
+  // Keyboard navigation between mods (ArrowLeft / ArrowRight)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft' && onNavigatePrev) {
+        e.preventDefault();
+        onNavigatePrev();
+      } else if (e.key === 'ArrowRight' && onNavigateNext) {
+        e.preventDefault();
+        onNavigateNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onNavigatePrev, onNavigateNext]);
   const [newTagInput, setNewTagInput] = useState('');
   const [userTags, setUserTags] = useState(item?.user_tags || []);
   const [steamTags, setSteamTags] = useState(item?.tags || []);
@@ -454,6 +485,29 @@ export function ItemDetailModal({
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {hasNavigation && (
+              <div className="flex items-center gap-1 bg-[#0a0f15] border border-[#233547] rounded-lg p-0.5 text-xs text-gray-400">
+                <button
+                  type="button"
+                  onClick={onNavigatePrev}
+                  title="Попередній мод (←)"
+                  className="hover:text-white p-1 rounded hover:bg-[#1a2636] transition cursor-pointer text-[#8f98a0]"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="font-mono text-[11px] px-1.5 text-gray-300 select-none">
+                  {currentIndex !== undefined && totalCount !== undefined ? `${currentIndex + 1} / ${totalCount}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={onNavigateNext}
+                  title="Наступний мод (→)"
+                  className="hover:text-white p-1 rounded hover:bg-[#1a2636] transition cursor-pointer text-[#8f98a0]"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <button
               onClick={onClose}
               className="text-[#8f98a0] hover:text-white p-1 rounded transition cursor-pointer"
@@ -911,10 +965,25 @@ export function ItemDetailModal({
             {/* Column 1: ID мода & ID автора */}
             <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 min-w-0">
               <span className="text-[11px] text-[#8f98a0] whitespace-nowrap">ID мода:</span>
-              <div className="flex items-center min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <span className="font-mono text-xs font-semibold text-[#66c0f4] bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] truncate">
                   {item.published_file_id}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(item.published_file_id, 'mod_id')}
+                  title="Скопіювати ID мода"
+                  className="text-gray-400 hover:text-white p-0.5 hover:bg-[#1f2d3d] rounded transition cursor-pointer shrink-0 flex items-center gap-1"
+                >
+                  {copiedField === 'mod_id' ? (
+                    <span className="flex items-center gap-1 text-[10px] text-[#a4d053] font-sans font-medium px-1">
+                      <Check className="w-3 h-3" />
+                      <span>Скопійовано!</span>
+                    </span>
+                  ) : (
+                    <Copy className="w-3 h-3 text-gray-400 hover:text-[#66c0f4]" />
+                  )}
+                </button>
               </div>
 
               <span className="text-[11px] text-[#8f98a0] whitespace-nowrap">ID автора:</span>

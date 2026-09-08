@@ -55,6 +55,14 @@ export function App() {
     return saved ? Number(saved) : 290;
   });
 
+  // Apply saved zoom immediately on application mount
+  useEffect(() => {
+    const savedZoom = localStorage.getItem('sw_ui_zoom');
+    if (savedZoom) {
+      document.documentElement.style.zoom = `${savedZoom}%`;
+    }
+  }, []);
+
   const isResizingLeftRef = useRef(false);
   const isResizingRightRef = useRef(false);
   const startXRef = useRef(0);
@@ -1191,16 +1199,30 @@ export function App() {
     return items.filter(it => selectedIds.has(it.published_file_id));
   }, [items, selectedIds]);
 
-  // Grid column class according to cardSize
+  // Grid column class according to cardSize, with responsive scale for wide viewports
   const gridClass = useMemo(() => {
     if (cardSize === 1) {
-      return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3';
+      return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9 gap-3';
     }
     if (cardSize === 3) {
-      return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-5';
+      return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-5';
     }
-    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
   }, [cardSize]);
+
+  // Mod index in current filtered list for modal navigation
+  const currentDetailIndex = useMemo(() => {
+    if (!detailItem) return -1;
+    return filteredItems.findIndex(it => it.published_file_id === detailItem.published_file_id);
+  }, [detailItem, filteredItems]);
+
+  const handleNavigateDetail = (direction) => {
+    if (currentDetailIndex === -1 || filteredItems.length <= 1) return;
+    let nextIndex = currentDetailIndex + direction;
+    if (nextIndex < 0) nextIndex = filteredItems.length - 1;
+    if (nextIndex >= filteredItems.length) nextIndex = 0;
+    setDetailItem(filteredItems[nextIndex]);
+  };
 
   if (loading) {
     return (
@@ -1212,7 +1234,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e141b] flex flex-col">
+    <div className="min-h-screen bg-[#0e141b] flex flex-col w-full overflow-x-hidden">
       
       {/* Unified Top Header Bar */}
       <Header
@@ -1232,8 +1254,8 @@ export function App() {
         filteredCount={filteredItems.length}
       />
 
-      {/* Main 3-column Layout */}
-      <div className="max-w-[1850px] mx-auto px-3 sm:px-5 lg:px-6 py-3 w-full flex-1 flex items-start">
+      {/* Main 3-column Layout (Edge-to-Edge full width) */}
+      <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-3 flex-1 flex items-start">
         
         {/* Left Column: Tags Sidebar with dynamic width */}
         <div style={{ width: `${leftWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
@@ -1376,6 +1398,11 @@ export function App() {
             selectedUserTags={selectedUserTags}
             tagPathMap={tagPathMap}
             reverseTagPathMap={reverseTagPathMap}
+            onNavigatePrev={() => handleNavigateDetail(-1)}
+            onNavigateNext={() => handleNavigateDetail(1)}
+            hasNavigation={filteredItems.length > 1}
+            currentIndex={currentDetailIndex}
+            totalCount={filteredItems.length}
           />
         </ErrorBoundary>
       )}

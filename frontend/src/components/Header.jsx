@@ -27,13 +27,30 @@ export function Header({
   totalItems,
   filteredCount
 }) {
+  const searchInputRef = React.useRef(null);
   const totalFound = status?.scan_state?.total_found ?? totalItems ?? 0;
   const processed = status?.scan_state?.processed_count ?? totalItems ?? 0;
   const limit = status?.max_limit;
 
+  // Global Ctrl+F / '/' shortcut to focus search input
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   return (
-    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-30 sticky top-0">
-      <div className="max-w-[1850px] mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-30 sticky top-0 w-full">
+      <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
         
         {/* 1. Brand / Game Name Badge */}
         <div className="flex items-center gap-2.5 shrink-0">
@@ -74,19 +91,29 @@ export function Header({
 
         {/* 2. Global Search Input */}
         <div className="relative flex-1 min-w-[220px] max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
+            ref={searchInputRef}
             type="text"
-            placeholder="Пошук за назвою, автором або ID..."
+            placeholder="Пошук за назвою, автором, ID... (Ctrl+F, Esc для скидання)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setSearchQuery('');
+                searchInputRef.current?.blur();
+              }
+            }}
             className="w-full bg-[#101822] border border-[#26374a] focus:border-[#66c0f4] rounded-md pl-9 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none transition shadow-inner"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-              title="Очистити пошук"
+              onClick={() => {
+                setSearchQuery('');
+                searchInputRef.current?.focus();
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 rounded cursor-pointer"
+              title="Очистити пошук (Esc)"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -115,7 +142,7 @@ export function Header({
           <button
             onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
             title={sortDir === 'asc' ? 'За зростанням' : 'За спаданням'}
-            className="bg-[#202e3d] hover:bg-[#2a3c4f] border border-[#26374a] text-xs text-[#66c0f4] px-2.5 py-1 rounded-md font-mono font-bold transition"
+            className="bg-[#202e3d] hover:bg-[#2a3c4f] border border-[#26374a] text-xs text-[#66c0f4] px-2.5 py-1 rounded-md font-mono font-bold transition cursor-pointer"
           >
             {sortDir === 'asc' ? '▲' : '▼'}
           </button>
@@ -131,24 +158,27 @@ export function Header({
               value={cardSize}
               onChange={(e) => setCardSize(Number(e.target.value))}
               className="w-14 accent-[#66c0f4] cursor-pointer h-1 bg-[#202e3d] rounded-lg"
-              title={cardSize === 1 ? 'Компактний' : cardSize === 2 ? 'Середній' : 'Великий'}
+              title={cardSize === 1 ? 'Компактна сітка (S)' : cardSize === 2 ? 'Стандартна сітка (M)' : 'Велика сітка (L)'}
             />
             <div className="flex items-center gap-0.5 font-mono text-[10px]">
               <button
                 onClick={() => setCardSize(1)}
-                className={`px-1 py-0.5 rounded transition ${cardSize === 1 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
+                title="Компактна сітка (S)"
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 1 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 S
               </button>
               <button
                 onClick={() => setCardSize(2)}
-                className={`px-1 py-0.5 rounded transition ${cardSize === 2 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
+                title="Стандартна сітка (M)"
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 2 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 M
               </button>
               <button
                 onClick={() => setCardSize(3)}
-                className={`px-1 py-0.5 rounded transition ${cardSize === 3 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
+                title="Велика сітка (L)"
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 3 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
               >
                 L
               </button>
