@@ -1,7 +1,9 @@
 import httpx
 import json
 import time
-from typing import List, Dict, Any
+import asyncio
+import re
+from typing import List, Dict, Any, Optional
 from ..config import STEAM_API_BATCH_SIZE, STEAM_API_TIMEOUT_SECONDS
 from ..db.session import get_connection
 
@@ -92,8 +94,73 @@ async def fetch_steam_api_details(item_ids: List[str]) -> Dict[str, Any]:
     conn.commit()
     conn.close()
 
+    # Trigger background resolution of any newly discovered creators
+    try:
+        asyncio.create_task(resolve_missing_authors())
+    except Exception:
+        pass
+
     return {
         "total_requested": len(item_ids),
         "updated_count": updated_count,
         "failed_count": failed_count
     }
+
+async def resolve_steam_author(client: httpx.AsyncClient, steam_id: str) -> Optional[str]:
+    """Resolves Steam persona name from public Steam Community profile XML."""
+    try:
+        url = f"https://steamcommunity.com/profiles/{steam_id}/?xml=1"
+        resp = await client.get(url, timeout=7.0, headers={"User-Agent": "StormworksWorkshopManager/1.0"})
+        if resp.status_code == 200:
+            m = re.search(r'<steamID><!\[CDATA\[(.*?)\]\]></steamID>', resp.text) or re.search(r'<steamID>(.*?)</steamID>', resp.text)
+            if m:
+                name = m.group(1).strip()
+                if name:
+                    return name
+    except Exception:
+        pass
+    return None
+
+async def resolve_missing_authors(limit: int = 500) -> Dict[str, Any]:
+    """Finds creators with no cached persona_name and resolves them in batches."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+    SELECT DISTINCT w.api_creator
+    FROM workshop_items w
+    LEFT JOIN steam_authors a ON w.api_creator = a.steam_id
+    WHERE w.api_creator IS NOT NULL AND w.api_creator != '' AND (a.persona_name IS NULL OR a.persona_name = '')
+    LIMIT ?
+    """, (limit,))
+    missing_ids = [r[0] for r in cur.fetchall()]
+    conn.close()
+
+    if not missing_ids:
+        return {"resolved": 0, "total": 0}
+
+    sem = asyncio.Semaphore(6)
+
+    async def fetch_one(client, sid):
+        async with sem:
+            name = await resolve_steam_author(client, sid)
+            return sid, name
+
+    resolved_count = 0
+    async with httpx.AsyncClient() as client:
+        for chunk in [missing_ids[i:i + 25] for i in range(0, len(missing_ids), 25)]:
+            results = await asyncio.gather(*[fetch_one(client, sid) for sid in chunk])
+            conn = get_connection()
+            cur = conn.cursor()
+            now = int(time.time())
+            for sid, name in results:
+                if name:
+                    cur.execute("""
+                    INSERT OR REPLACE INTO steam_authors (steam_id, persona_name, updated_at)
+                    VALUES (?, ?, ?)
+                    """, (sid, name, now))
+                    resolved_count += 1
+            conn.commit()
+            conn.close()
+
+    return {"resolved": resolved_count, "total": len(missing_ids)}
+

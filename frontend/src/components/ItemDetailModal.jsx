@@ -994,14 +994,14 @@ export function ItemDetailModal({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-mono text-xs font-semibold text-white hover:text-[#66c0f4] bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] hover:border-[#385d82] flex items-center gap-1 transition group truncate max-w-full"
-                    title="Відкрити профіль автора в Steam"
+                    title={item.creator ? `Відкрити профіль автора в Steam (ID: ${item.creator})` : 'Відкрити профіль автора в Steam'}
                   >
-                    <span className="truncate">{item.creator || 'Не вказано'}</span>
+                    <span className="truncate">{item.creator_name || item.creator || 'Не вказано'}</span>
                     <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-[#66c0f4] shrink-0 transition" />
                   </a>
                 ) : (
                   <span className="font-mono text-xs font-semibold text-white bg-[#141d27] px-2 py-0.5 rounded border border-[#22394f] truncate">
-                    {item.creator || 'Не вказано'}
+                    {item.creator_name || item.creator || 'Не вказано'}
                   </span>
                 )}
               </div>

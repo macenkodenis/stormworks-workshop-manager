@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional, Any
+import asyncio
 import json
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 from .config import APP_ID, MAX_WORKSHOP_ITEMS, STATIC_DIR, PREVIEWS_DIR
 from .db.session import init_db, get_connection
 from .scanner.workshop_scanner import scan_local_workshop
-from .steam_api.client import fetch_steam_api_details
+from .steam_api.client import fetch_steam_api_details, resolve_missing_authors
 from .cache.preview_cache import cache_previews_for_items
 from .steam_api.steam_service import SteamService
 
@@ -39,6 +40,10 @@ scan_state = {
 @app.on_event("startup")
 def on_startup():
     init_db()
+    try:
+        asyncio.create_task(resolve_missing_authors())
+    except Exception:
+        pass
 
 @app.get("/api/status")
 def get_status():
@@ -94,31 +99,36 @@ def list_items(
     conn = get_connection()
     cur = conn.cursor()
 
-    query = "SELECT * FROM workshop_items WHERE 1=1"
+    query = """
+    SELECT w.*, a.persona_name AS creator_name
+    FROM workshop_items w
+    LEFT JOIN steam_authors a ON w.api_creator = a.steam_id
+    WHERE 1=1
+    """
     params = []
 
     if q:
-        query += " AND (api_title LIKE ? OR published_file_id LIKE ? OR api_description LIKE ?)"
+        query += " AND (w.api_title LIKE ? OR w.published_file_id LIKE ? OR w.api_description LIKE ? OR a.persona_name LIKE ?)"
         term = f"%{q}%"
-        params.extend([term, term, term])
+        params.extend([term, term, term, term])
 
     if tag:
-        query += " AND api_tags LIKE ?"
+        query += " AND w.api_tags LIKE ?"
         params.append(f'%"{tag}"%')
 
     if favorited is not None:
-        query += " AND is_favorited = ?"
+        query += " AND w.is_favorited = ?"
         params.append(1 if favorited else 0)
 
     # Sorting
     sort_map = {
-        "id": "CAST(published_file_id AS INTEGER)",
-        "title": "api_title",
-        "size": "COALESCE(local_size_bytes, api_file_size, 0)",
-        "updated": "COALESCE(api_time_updated, local_mtime, 0)",
-        "created": "COALESCE(api_time_created, 0)"
+        "id": "CAST(w.published_file_id AS INTEGER)",
+        "title": "w.api_title",
+        "size": "COALESCE(w.local_size_bytes, w.api_file_size, 0)",
+        "updated": "COALESCE(w.api_time_updated, w.local_mtime, 0)",
+        "created": "COALESCE(w.api_time_created, 0)"
     }
-    col = sort_map.get(sort_by, "CAST(published_file_id AS INTEGER)")
+    col = sort_map.get(sort_by, "CAST(w.published_file_id AS INTEGER)")
     query += f" ORDER BY {col} {sort_dir.upper()}"
 
     cur.execute(query, params)
@@ -176,6 +186,7 @@ def list_items(
             "title": r["api_title"] or f"Item #{r['published_file_id']}",
             "description": r["api_description"],
             "creator": r["api_creator"],
+            "creator_name": r["creator_name"] if "creator_name" in r.keys() and r["creator_name"] else None,
             "preview_url": r["api_preview_url"],
             "has_local_preview": bool(r["local_preview_path"]),
             "time_created": r["api_time_created"],
@@ -193,6 +204,11 @@ def list_items(
         "total_items": len(items),
         "items": items
     }
+
+@app.post("/api/authors/sync")
+async def sync_authors(background_tasks: BackgroundTasks):
+    background_tasks.add_task(resolve_missing_authors)
+    return {"status": "started", "message": "Author name resolution running in background"}
 
 @app.get("/api/previews/{item_id}")
 def get_preview_image(item_id: str):

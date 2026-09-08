@@ -112,6 +112,32 @@ export function ItemRow({
     return () => observer.disconnect();
   }, [displayTags.length, item.published_file_id, cardSize]);
 
+  // Dynamic description line-clamp calculation based on available vertical space
+  const descContainerRef = useRef(null);
+  const descTextRef = useRef(null);
+  const [maxDescLines, setMaxDescLines] = useState(cardSize === 1 ? 1 : cardSize === 2 ? 2 : 4);
+
+  useLayoutEffect(() => {
+    const container = descContainerRef.current;
+    if (!container || !descriptionSnippet) return;
+
+    const computeLines = () => {
+      const h = container.clientHeight;
+      if (h <= 0) return;
+      const computedLh = descTextRef.current
+        ? parseFloat(window.getComputedStyle(descTextRef.current).lineHeight)
+        : 18;
+      const lh = computedLh && !isNaN(computedLh) && computedLh > 10 ? computedLh : 18;
+      const lines = Math.max(1, Math.floor((h + 2) / lh));
+      setMaxDescLines(cardSize === 1 ? 1 : lines);
+    };
+
+    computeLines();
+    const ro = new ResizeObserver(computeLines);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [cardSize, descriptionSnippet]);
+
   // Background style based on selection
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
   if (isSelected) {
@@ -123,7 +149,9 @@ export function ItemRow({
     ? 'w-28 sm:w-32'
     : cardSize === 2
     ? 'w-36 sm:w-44'
-    : 'w-48 sm:w-56 md:w-60';
+    : 'w-52 sm:w-60 md:w-64';
+
+  const authorName = item.creator_name || item.creator;
 
   return (
     <div
@@ -154,7 +182,7 @@ export function ItemRow({
       )}
 
       {/* 1. Left Section: Thumbnail & Quick Status Badges */}
-      <div className={`relative ${thumbWidthClass} shrink-0 bg-[#101822] overflow-hidden border-r border-[#233547] flex items-center justify-center aspect-video sm:aspect-auto`}>
+      <div className={`relative ${thumbWidthClass} shrink-0 bg-[#101822] overflow-hidden border-r border-[#233547] flex items-center justify-center aspect-video`}>
         {/* Favorite Star (top-left) */}
         <button
           type="button"
@@ -264,93 +292,110 @@ export function ItemRow({
       </div>
 
       {/* 2. Unified Content Section: title, meta, description, tags */}
-      <div className="flex-1 min-w-0 p-2.5 sm:p-3 flex flex-col justify-between gap-1.5">
+      <div className="flex-1 min-w-0 px-2.5 py-2 sm:px-3 sm:py-2 flex flex-col justify-between gap-1 h-full overflow-hidden">
         
-        {/* Top Section: Title, Meta, Description */}
-        <div className="min-w-0 flex flex-col gap-1 sm:gap-1.5">
-          
-          {/* Header Row: Title & ID on left, Metadata on right — single line when space allows, wraps only as needed */}
-          <div className="flex items-center justify-between gap-x-3 gap-y-1.5 flex-wrap min-w-0">
-            {/* Title & Steam ID Workshop Link */}
-            <div className="flex items-center gap-2 min-w-[min(100%,260px)] flex-1 max-w-full">
-              <h3
-                className={`${cardSize === 1 ? 'text-xs' : cardSize === 2 ? 'text-sm' : 'text-sm sm:text-base'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 flex-1 leading-tight`}
-                title={item.title}
+        {/* Top Header Row: Title & ID on left, Metadata on right — single line when space allows, wraps only as needed */}
+        <div className="shrink-0 min-w-0 flex items-center justify-between gap-x-3 gap-y-1.5 flex-wrap">
+          {/* Title & Steam ID Workshop Link */}
+          <div className="flex items-center gap-2 min-w-[min(100%,220px)] flex-1 max-w-full">
+            <h3
+              className={`${cardSize === 1 ? 'text-xs' : cardSize === 2 ? 'text-sm' : 'text-sm sm:text-base'} font-bold text-white group-hover:text-[#66c0f4] transition truncate min-w-0 flex-1 leading-tight`}
+              title={item.title}
+            >
+              {item.title}
+            </h3>
+
+            {/* Mod ID is Workshop Link; shown when space permits on M & L, omitted on S */}
+            {cardSize !== 1 && (
+              <a
+                href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className={`hover:text-[#66c0f4] hover:border-[#66c0f4]/50 items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap ${
+                  cardSize === 2 ? 'hidden md:inline-flex' : 'inline-flex'
+                }`}
+                title="Відкрити сторінку мода в Steam Workshop"
               >
-                {item.title}
-              </h3>
-
-              {/* For M & L: Mod ID is itself the Workshop Link; omitted on S cards */}
-              {cardSize !== 1 && (
-                <a
-                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap"
-                  title="Відкрити сторінку мода в Steam Workshop"
-                >
-                  ID: {item.published_file_id}
-                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                </a>
-              )}
-            </div>
-
-            {/* Metadata Bar (Badges, Author, Dates): stays on line 1 if space permits, wraps only as needed */}
-            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none min-w-0 max-w-full">
-              {/* Organization Badge */}
-              {item.is_sorted ? (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap shrink-0">
-                  Відсортовано
-                </span>
-              ) : (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap shrink-0">
-                  Не відсортовано
-                </span>
-              )}
-
-              {/* Status Badge (for M & L) */}
-              {cardSize !== 1 && (
-                <div className="flex items-center gap-1 text-[#5c7e10] whitespace-nowrap shrink-0">
-                  <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span className="text-[10px] sm:text-[10.5px]">Встановлено</span>
-                </div>
-              )}
-
-              {/* Author (visible in L mode) */}
-              {item.creator && cardSize === 3 && (
-                <span className="text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate max-w-[180px] shrink-0" title={`Автор: ${item.creator}`}>
-                  автор: <span className="text-gray-300 font-medium">{item.creator}</span>
-                </span>
-              )}
-
-              {/* Updated timestamp (for M & L) */}
-              {cardSize !== 1 && (
-                <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата оновлення">
-                  <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
-                  <span>{formatDate(item.time_updated || item.local_mtime)}</span>
-                </div>
-              )}
-
-              {/* Created timestamp (only in L mode) */}
-              {item.time_created && cardSize === 3 && (
-                <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата створення">
-                  <Clock className="w-3 h-3 text-gray-500 shrink-0" />
-                  <span>{formatDate(item.time_created)}</span>
-                </div>
-              )}
-            </div>
+                ID: {item.published_file_id}
+                <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              </a>
+            )}
           </div>
 
-          {/* Row 3: Clean Description Excerpt */}
-          {descriptionSnippet && (
-            <p className={`text-xs text-[#8f98a0] leading-relaxed max-w-full ${cardSize === 1 ? 'line-clamp-1' : 'line-clamp-2'}`}>
-              {descriptionSnippet}
-            </p>
-          )}
+          {/* Metadata Bar (Badges, Author, Dates): stays on line 1 if space permits, wraps only as needed */}
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none min-w-0 max-w-full">
+            {/* Organization Badge */}
+            {item.is_sorted ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap shrink-0">
+                Відсортовано
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap shrink-0">
+                Не відсортовано
+              </span>
+            )}
+
+            {/* Status Badge (for M & L) */}
+            {cardSize !== 1 && (
+              <div className="flex items-center gap-1 text-[#5c7e10] whitespace-nowrap shrink-0">
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                <span className="text-[10px] sm:text-[10.5px]">Встановлено</span>
+              </div>
+            )}
+
+            {/* Author Name (for L, and for M when space permits) */}
+            {authorName && (cardSize === 3 || cardSize === 2) && (
+              <span
+                className={`text-[10.5px] sm:text-[11px] text-[#8f98a0] truncate max-w-[180px] shrink-0 ${
+                  cardSize === 2 ? 'hidden lg:inline' : ''
+                }`}
+                title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+              >
+                автор: <span className="text-gray-300 font-medium">{authorName}</span>
+              </span>
+            )}
+
+            {/* Updated timestamp (for M & L) */}
+            {cardSize !== 1 && (
+              <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата оновлення">
+                <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
+                <span>{formatDate(item.time_updated || item.local_mtime)}</span>
+              </div>
+            )}
+
+            {/* Created timestamp (only in L mode) */}
+            {item.time_created && cardSize === 3 && (
+              <div className="flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0" title="Дата створення">
+                <Clock className="w-3 h-3 text-gray-500 shrink-0" />
+                <span>{formatDate(item.time_created)}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Row 3: Tags Flow (single line with dynamic fit & remainder badge, zero overflow) */}
+        {/* Middle Section: Dynamic multi-line description snippet that fills available vertical space */}
+        {descriptionSnippet ? (
+          <div ref={descContainerRef} className="flex-1 min-w-0 my-0.5 overflow-hidden flex items-center">
+            <p
+              ref={descTextRef}
+              className="text-xs text-[#8f98a0] leading-snug max-w-full"
+              style={{
+                display: '-webkit-box',
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: maxDescLines,
+                overflow: 'hidden'
+              }}
+              title={descriptionSnippet}
+            >
+              {descriptionSnippet}
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* Bottom Section: Tags Flow (single line with dynamic fit & remainder badge, zero overflow) */}
         {displayTags.length > 0 && (
           <div ref={tagsContainerRef} className="mt-1 flex items-center gap-1 w-full overflow-hidden pt-1 border-t border-[#233547]/40 min-w-0">
             {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {

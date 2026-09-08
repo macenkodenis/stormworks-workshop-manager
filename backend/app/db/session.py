@@ -96,5 +96,14 @@ def init_db():
     );
     """)
 
+    # Table for cached steam author names
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS steam_authors (
+        steam_id TEXT PRIMARY KEY,
+        persona_name TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    """)
+
     conn.commit()
     conn.close()
