@@ -323,24 +323,38 @@ export function ItemRow({
 
           {/* Metadata Bar (Badges, Author, Dates): flex-nowrap to guarantee max 1 line, drops dates then author if space is tight */}
           <div className="flex items-center gap-2 flex-nowrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none min-w-0 max-w-full overflow-hidden shrink-0">
-            {/* Organization Badge */}
-            {item.is_sorted ? (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#14281a] text-[#a4d053] border border-[#a4d053]/40 whitespace-nowrap shrink-0">
-                Відсортовано
-              </span>
-            ) : (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#2a1c10] text-[#f49e42] border border-[#f49e42]/40 whitespace-nowrap shrink-0">
-                Не відсортовано
-              </span>
-            )}
-
-            {/* Status Badge (for M & L) */}
-            {cardSize !== 1 && (
-              <div className="hidden @min-[260px]:inline-flex items-center gap-1 text-[#5c7e10] whitespace-nowrap shrink-0">
+            {/* Status Indicator (full analogue of ItemDetailModal: highest priority, visible in edgecases) */}
+            <div
+              className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] sm:text-[10.5px] font-medium ${
+                isUnsubscribed
+                  ? 'text-[#ff6b6b]'
+                  : isDisabled
+                  ? 'text-[#f49e42]'
+                  : 'text-[#a4d053]'
+              }`}
+              title={`Статус: ${isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}`}
+            >
+              {isUnsubscribed ? (
+                <Trash2 className="w-3 h-3 shrink-0" />
+              ) : isDisabled ? (
+                <PowerOff className="w-3 h-3 shrink-0" />
+              ) : (
                 <CheckCircle2 className="w-3 h-3 shrink-0" />
-                <span className="text-[10px] sm:text-[10.5px]">Встановлено</span>
-              </div>
-            )}
+              )}
+              <span>{isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}</span>
+            </div>
+
+            {/* Organization Badge (lower priority than status; hidden in narrow edgecases) */}
+            <span
+              className={`hidden @min-[280px]:inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
+                item.is_sorted
+                  ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
+                  : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
+              }`}
+              title={item.is_sorted ? 'Організація: Відсортовано' : 'Організація: Не відсортовано'}
+            >
+              {item.is_sorted ? 'Відсортовано' : 'Не відсортовано'}
+            </span>
 
             {/* Author Name (for L & M): drops if width < 360px */}
             {authorName && cardSize !== 1 && (

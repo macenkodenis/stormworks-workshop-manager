@@ -312,9 +312,25 @@ export function ItemCard({
             <span>{formatDate(item.time_updated || item.local_mtime)}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-[#5c7e10]">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Встановлено</span>
+          {/* Status Indicator (analogue of ItemDetailModal) */}
+          <div
+            className={`flex items-center gap-1 font-medium text-[11px] ${
+              isUnsubscribed
+                ? 'text-[#ff6b6b]'
+                : isDisabled
+                ? 'text-[#f49e42]'
+                : 'text-[#a4d053]'
+            }`}
+            title={`Статус: ${isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}`}
+          >
+            {isUnsubscribed ? (
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            ) : isDisabled ? (
+              <PowerOff className="w-3.5 h-3.5 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            )}
+            <span>{isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}</span>
           </div>
         </div>
 
