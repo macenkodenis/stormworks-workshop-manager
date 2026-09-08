@@ -93,6 +93,16 @@ export function RightActionSidebar({
     safeSteamTags.some(st => typeof st === 'string' && st.toLowerCase() === bulkTagInput.trim().toLowerCase())
   );
 
+  // 1. Disable / Enable logic:
+  // "увімкнути тільки якщо всі виділені моди вимкнуті, інакше всі, або хоча-б один з вибраних увімкнутий то має залишатись кнопка вимкнути"
+  const allSelectedDisabled = selectedItems.length > 0 && selectedItems.every(it => it.is_disabled);
+  const isEnableAction = selectedItems.length > 0 && allSelectedDisabled;
+
+  // 2. Subscribe / Unsubscribe logic:
+  // "підписатись тільки якщо всі виділені моди відписані, інакше якщо хоча б один підписаний то кнопка відписатись"
+  const allSelectedUnsubscribed = selectedItems.length > 0 && selectedItems.every(it => it.is_unsubscribed);
+  const isSubscribeAction = selectedItems.length > 0 && allSelectedUnsubscribed;
+
   const handleApplyBulkTag = (e) => {
     if (e) e.preventDefault();
     const tag = bulkTagInput.trim();
@@ -107,10 +117,10 @@ export function RightActionSidebar({
   };
 
   return (
-    <aside className="w-full h-full bg-[#171d25] border border-[#22303e] rounded-lg p-3.5 flex flex-col shadow justify-between text-xs overflow-hidden">
+    <aside className="w-full h-full bg-[#171d25] border border-[#22303e] rounded-lg flex flex-col shadow text-xs overflow-hidden select-none">
       
-      {/* Top Section */}
-      <div className="space-y-3.5">
+      {/* Scrollable Upper Section: metrics, selection & tagging */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0 pr-2.5">
         
         {/* Selected Metrics Card */}
         <div className="bg-[#121922] border border-[#233547] rounded-lg p-3 space-y-2.5">
@@ -218,13 +228,13 @@ export function RightActionSidebar({
             </button>
           </form>
 
-          {/* Combined filtered suggestions (User tags in orange, Steam tags in blue, color only) */}
+          {/* Combined filtered suggestions */}
           {combinedSuggestions.length > 0 && (
             <div className="pt-1.5 space-y-1">
               <span className="text-[10px] text-gray-500 block">
                 {bulkTagInput.trim() ? 'Знайдені підказки:' : 'Рекомендовані теги:'}
               </span>
-              <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto pr-0.5">
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-0.5">
                 {combinedSuggestions.slice(0, 12).map(({ tag, type }, idx) => {
                   const isSteam = type === 'steam';
                   return (
@@ -291,127 +301,128 @@ export function RightActionSidebar({
           </div>
         </div>
 
-        {/* Planning Section: Plan bulk actions for selected items */}
-        <div
-          className={`rounded-lg p-2.5 space-y-2 transition-colors border ${
-            selectedCount > 0
-              ? 'bg-[#121922] border-[#293c50]'
-              : 'bg-[#10161f] border-[#1c2633] opacity-60'
-          }`}
-        >
-          <div
-            className={`flex items-center gap-1.5 text-[11px] font-semibold ${
-              selectedCount > 0 ? 'text-[#66c0f4]' : 'text-gray-500'
-            }`}
-          >
+      </div>
+
+      {/* Permanently Pinned Bottom Action Dock: ALWAYS visible above screen edge */}
+      <div className="p-3 bg-[#121922] border-t border-[#233547] space-y-2 shrink-0">
+        
+        {/* Planning Section Header */}
+        <div className="flex items-center justify-between text-[11px] font-semibold text-[#8f98a0]">
+          <span className="flex items-center gap-1.5 text-[#66c0f4]">
             <ClipboardList className="w-3.5 h-3.5" />
-            <span>Запланувати для вибраних{selectedCount > 0 ? ` (${selectedCount})` : ''}</span>
-          </div>
+            <span>Запланувати дію{selectedCount > 0 ? ` (${selectedCount})` : ''}</span>
+          </span>
+        </div>
 
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              disabled={selectedCount === 0}
-              onClick={() => onPlanAction && onPlanAction('disable')}
-              className={`py-1.5 px-2 rounded font-semibold text-xs transition flex items-center justify-center gap-1.5 border ${
-                selectedCount > 0
-                  ? 'bg-[#1a140d] hover:bg-[#2e2013] text-[#f49e42] border-[#4d3215] hover:border-[#734a1e] active:scale-98 cursor-pointer'
-                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed'
-              }`}
-              title="Додати виділені моди до плану на вимкнення"
-            >
-              <PowerOff className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Вимкнути</span>
-            </button>
-
+        {/* 2 Adaptive Planning Buttons: [Вимкнути / Увімкнути] & [Відписатися / Підписатися] */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {/* Button 1: Adaptive Enable / Disable */}
+          {isEnableAction ? (
             <button
               type="button"
               disabled={selectedCount === 0}
               onClick={() => onPlanAction && onPlanAction('enable')}
-              className={`py-1.5 px-2 rounded font-semibold text-xs transition flex items-center justify-center gap-1.5 border ${
+              className={`py-2 px-2.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 border ${
                 selectedCount > 0
-                  ? 'bg-[#112115] hover:bg-[#1b3623] text-[#a4d053] border-[#264d2e] hover:border-[#387344] active:scale-98 cursor-pointer'
-                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed'
+                  ? 'bg-[#142618] hover:bg-[#1f3b25] text-[#a4d053] border-[#264d2e] hover:border-[#387344] active:scale-98 cursor-pointer shadow'
+                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed opacity-50'
               }`}
-              title="Додати виділені моди до плану на увімкнення"
+              title="Запланувати увімкнення для вибраних модів"
             >
-              <Power className="w-3.5 h-3.5 shrink-0" />
+              <Power className="w-3.5 h-3.5 shrink-0 text-[#a4d053]" />
               <span className="truncate">Увімкнути</span>
             </button>
-
+          ) : (
             <button
               type="button"
               disabled={selectedCount === 0}
-              onClick={() => onPlanAction && onPlanAction('unsubscribe')}
-              className={`py-1.5 px-2 rounded font-semibold text-xs transition flex items-center justify-center gap-1.5 border ${
+              onClick={() => onPlanAction && onPlanAction('disable')}
+              className={`py-2 px-2.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 border ${
                 selectedCount > 0
-                  ? 'bg-[#201013] hover:bg-[#36181e] text-[#ff6b6b] border-[#4d1f25] hover:border-[#732a34] active:scale-98 cursor-pointer'
-                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed'
+                  ? 'bg-[#1a140d] hover:bg-[#2e2013] text-[#f49e42] border-[#4d3215] hover:border-[#734a1e] active:scale-98 cursor-pointer shadow'
+                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed opacity-50'
               }`}
-              title="Додати виділені моди до плану на відписку"
+              title="Запланувати вимкнення для вибраних модів"
             >
-              <Trash2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Відписатися</span>
+              <PowerOff className="w-3.5 h-3.5 shrink-0 text-[#f49e42]" />
+              <span className="truncate">Вимкнути</span>
             </button>
+          )}
 
+          {/* Button 2: Adaptive Subscribe / Unsubscribe */}
+          {isSubscribeAction ? (
             <button
               type="button"
               disabled={selectedCount === 0}
               onClick={() => onPlanAction && onPlanAction('subscribe')}
-              className={`py-1.5 px-2 rounded font-semibold text-xs transition flex items-center justify-center gap-1.5 border ${
+              className={`py-2 px-2.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 border ${
                 selectedCount > 0
-                  ? 'bg-[#101b26] hover:bg-[#172b3d] text-[#66c0f4] border-[#1e3b54] hover:border-[#2d5980] active:scale-98 cursor-pointer'
-                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed'
+                  ? 'bg-[#101b26] hover:bg-[#172b3d] text-[#66c0f4] border-[#1e3b54] hover:border-[#2d5980] active:scale-98 cursor-pointer shadow'
+                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed opacity-50'
               }`}
-              title="Додати виділені моди до плану на підписку"
+              title="Запланувати підписку на вибрані моди"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-[#66c0f4]" />
               <span className="truncate">Підписатися</span>
             </button>
-          </div>
-        </div>
-
-        {/* Plan status and Execute Plan Button */}
-        <div className="pt-1 space-y-2">
-          {pendingActionsCount > 0 && (
-            <div className="flex items-center justify-between px-1 text-[11px] text-[#8f98a0]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#a4d053] animate-pulse" />
-                <span>У плані дій:</span>
-                <strong className="text-white font-mono">{pendingActionsCount}</strong>
-              </span>
-              {onClearPlan && (
-                <button
-                  type="button"
-                  onClick={onClearPlan}
-                  className="text-[11px] text-gray-400 hover:text-[#ff6b6b] transition cursor-pointer"
-                  title="Очистити всі заплановані дії"
-                >
-                  Очистити
-                </button>
-              )}
-            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={selectedCount === 0}
+              onClick={() => onPlanAction && onPlanAction('unsubscribe')}
+              className={`py-2 px-2.5 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 border ${
+                selectedCount > 0
+                  ? 'bg-[#201013] hover:bg-[#36181e] text-[#ff6b6b] border-[#4d1f25] hover:border-[#732a34] active:scale-98 cursor-pointer shadow'
+                  : 'bg-[#12171e] text-gray-600 border-[#1a212b] cursor-not-allowed opacity-50'
+              }`}
+              title="Запланувати відписку від вибраних модів"
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0 text-[#ff6b6b]" />
+              <span className="truncate">Відписатися</span>
+            </button>
           )}
-
-          <button
-            type="button"
-            onClick={onOpenPlanModal}
-            disabled={pendingActionsCount === 0}
-            className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-200 shadow border ${
-              pendingActionsCount > 0
-                ? 'bg-[#1c4d28] hover:bg-[#246334] active:bg-[#163d20] text-white border-[#3b8c4c] shadow-lg shadow-green-950/40 active:scale-98 cursor-pointer'
-                : 'bg-[#182029] text-gray-500 cursor-not-allowed border-[#202b38]'
-            }`}
-            title={
-              pendingActionsCount > 0
-                ? 'Відкрити вікно підтвердження та перегляду плану'
-                : 'Заплануйте дії для модів, щоб застосувати їх разом'
-            }
-          >
-            <Play className="w-3.5 h-3.5 fill-current text-[#a4d053]" />
-            <span>Застосувати план{pendingActionsCount > 0 ? ` (${pendingActionsCount})` : ''}</span>
-          </button>
         </div>
+
+        {/* Plan status count & Clear button */}
+        {pendingActionsCount > 0 && (
+          <div className="flex items-center justify-between px-1 text-[11px] text-[#8f98a0] pt-0.5">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#a4d053] animate-pulse" />
+              <span>У плані дій:</span>
+              <strong className="text-white font-mono">{pendingActionsCount}</strong>
+            </span>
+            {onClearPlan && (
+              <button
+                type="button"
+                onClick={onClearPlan}
+                className="text-[11px] text-gray-400 hover:text-[#ff6b6b] transition cursor-pointer"
+                title="Очистити всі заплановані дії"
+              >
+                Очистити
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Big Apply Plan Button: ALWAYS visible and pinned */}
+        <button
+          type="button"
+          onClick={onOpenPlanModal}
+          disabled={pendingActionsCount === 0}
+          className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-200 shadow border ${
+            pendingActionsCount > 0
+              ? 'bg-[#1c4d28] hover:bg-[#246334] active:bg-[#163d20] text-white border-[#3b8c4c] shadow-lg shadow-green-950/40 active:scale-98 cursor-pointer'
+              : 'bg-[#182029] text-gray-500 cursor-not-allowed border-[#202b38]'
+          }`}
+          title={
+            pendingActionsCount > 0
+              ? 'Відкрити вікно підтвердження та перегляду плану'
+              : 'Заплануйте дії для модів, щоб застосувати їх разом'
+          }
+        >
+          <Play className="w-3.5 h-3.5 fill-current text-[#a4d053]" />
+          <span>Застосувати план{pendingActionsCount > 0 ? ` (${pendingActionsCount})` : ''}</span>
+        </button>
 
       </div>
 

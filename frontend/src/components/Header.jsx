@@ -33,7 +33,7 @@ export function Header({
   const limit = status?.max_limit;
 
   return (
-    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-10">
+    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-30 sticky top-0">
       <div className="max-w-[1850px] mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         
         {/* 1. Brand / Game Name Badge */}

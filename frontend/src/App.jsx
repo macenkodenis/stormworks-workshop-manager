@@ -110,10 +110,10 @@ export function App() {
     };
   }, [leftWidth, rightWidth]);
 
-  // Sidebar sticky positioning: always stick 8px from top and stretch to 8px from bottom (100vh - 16px)
+  // Sidebar sticky positioning: stays below sticky header (4.25rem) and reaches 12px from bottom (100vh - 5rem)
   const stickySidebarStyle = {
-    top: '0.5rem',
-    height: 'calc(100vh - 1rem)'
+    top: '4.25rem',
+    height: 'calc(100vh - 5rem)'
   };
 
   // Tag Filtering (Steam tags)
@@ -1280,7 +1280,7 @@ export function App() {
       />
 
       {/* Main 3-column Layout */}
-      <div className="max-w-[1850px] mx-auto px-3 sm:px-5 lg:px-6 py-4 w-full flex-1 flex items-start">
+      <div className="max-w-[1850px] mx-auto px-3 sm:px-5 lg:px-6 py-3 w-full flex-1 flex items-start">
         
         {/* Left Column: Tags Sidebar with dynamic width */}
         <div style={{ width: `${leftWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
