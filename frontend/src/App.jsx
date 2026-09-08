@@ -1234,7 +1234,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e141b] flex flex-col w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#0e141b] flex flex-col w-full">
       
       {/* Unified Top Header Bar */}
       <Header

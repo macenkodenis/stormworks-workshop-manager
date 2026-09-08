@@ -42,32 +42,32 @@ export function SettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="w-full max-w-md bg-[#1b2838] border border-[#2a475e] rounded-lg shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0]"
+        className="w-full max-w-lg max-h-full bg-[#1b2838] border border-[#2a475e] rounded-xl shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0] my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-[#171d25] border-b border-[#2a475e]">
+        {/* Header - Pinned */}
+        <div className="flex items-center justify-between px-5 py-3.5 bg-[#171d25] border-b border-[#2a475e] shrink-0">
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-[#66c0f4]" />
             <h2 className="text-base font-semibold text-white">Налаштування</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#2a475e] transition"
-            title="Закрити"
+            className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#2a475e] transition cursor-pointer"
+            title="Закрити (Esc)"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-6">
+        {/* Scrollable Content Body */}
+        <div className="p-5 space-y-6 flex-1 overflow-y-auto min-h-0">
           
           {/* Setting 1: UI Zoom */}
           <div className="space-y-2">
@@ -297,11 +297,12 @@ export function SettingsModal({
 
         </div>
 
-        {/* Footer */}
-        <div className="px-5 py-3 bg-[#171d25] border-t border-[#2a475e] flex justify-end">
+        {/* Footer - Pinned */}
+        <div className="px-5 py-3 bg-[#171d25] border-t border-[#2a475e] flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-gray-500 font-mono hidden sm:inline">Stormworks Workshop Manager</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs font-semibold rounded shadow transition"
+            className="px-5 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1f374a] text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer ml-auto"
           >
             Готово
           </button>
