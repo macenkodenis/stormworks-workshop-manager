@@ -131,6 +131,7 @@ class SteamService:
     async def execute_cef_rpc(js_expression: str, port: int = DEBUG_PORT) -> Dict[str, Any]:
         """
         Connects to Steam CEF via WebSocket and executes an expression using Chrome DevTools Protocol.
+        Targets 'SharedJSContext' (steamloopback.host) where SteamClient.Apps API is available.
         """
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{port}/json", headers={"User-Agent": "SW-Manager"})
@@ -138,13 +139,26 @@ class SteamService:
                 targets = json.loads(resp.read().decode())
 
             target_ws_url = None
+
+            # Priority 1: SharedJSContext — this is where SteamClient.Apps lives
             for t in targets:
-                if t.get("webSocketDebuggerUrl"):
-                    # Prefer page or clientui target
+                title = t.get("title", "")
+                url = t.get("url", "")
+                ws = t.get("webSocketDebuggerUrl", "")
+                if ws and ("SharedJSContext" in title or "steamloopback.host" in url):
+                    target_ws_url = ws
+                    break
+
+            # Priority 2: Any page with steamloopback or steamui in URL
+            if not target_ws_url:
+                for t in targets:
                     url = t.get("url", "")
-                    if "steamui" in url or "clientui" in url or t.get("type") == "page":
-                        target_ws_url = t["webSocketDebuggerUrl"]
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    if ws and ("steamui" in url or "clientui" in url):
+                        target_ws_url = ws
                         break
+
+            # Fallback: first available target
             if not target_ws_url and targets:
                 target_ws_url = targets[0].get("webSocketDebuggerUrl")
 
@@ -167,7 +181,12 @@ class SteamService:
                     raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
                     msg = json.loads(raw)
                     if msg.get("id") == msg_id:
-                        return msg.get("result", {}).get("result", {})
+                        result = msg.get("result", {})
+                        # Raise if there was an exception
+                        if "exceptionDetails" in result:
+                            exc = result["exceptionDetails"]
+                            raise RuntimeError(f"JS exception: {exc.get('text','unknown')} — {exc.get('exception', {}).get('description','')}")
+                        return result.get("result", {})
 
         except Exception as e:
             raise RuntimeError(f"Steam CEF RPC execution failed: {e}")
@@ -260,16 +279,136 @@ class SteamService:
         }
 
     @staticmethod
-    async def set_items_subscription(item_ids: List[str], is_subscribed: bool, mode: str = "hybrid") -> Dict[str, Any]:
+    def execute_vdf_subscription_toggle(item_ids: List[str], is_subscribed: bool) -> int:
         """
-        High-level dispatcher for subscribing or unsubscribing items.
+        Mode B: Removes or restores entries in 573090_subscriptions.vdf for unsubscription.
+        When unsubscribing: removes the entry from the VDF entirely.
+        When subscribing: adds back a minimal entry with disabled_locally=0.
+        Note: Steam must be closed for this to take effect (VDF is cached in memory).
+        """
+        vdf_path = SteamService.find_subscriptions_vdf()
+        if not vdf_path or not vdf_path.exists():
+            raise FileNotFoundError("subscriptions.vdf not found in Steam userdata")
+
+        with open(vdf_path, "r", encoding="utf-8", errors="ignore") as f:
+            vdf_content = f.read()
+
+        data = parse_vdf(vdf_content)
+        sub_dict = data.get("subscribedfiles", {})
+        ids_set = set(item_ids)
+        affected = 0
+
+        if not is_subscribed:
+            # Remove entries for unsubscribed items
+            keys_to_remove = []
+            for key, val in list(sub_dict.items()):
+                if isinstance(val, dict) and "publishedfileid" in val:
+                    if str(val["publishedfileid"]) in ids_set:
+                        keys_to_remove.append(key)
+                        affected += 1
+            for k in keys_to_remove:
+                del sub_dict[k]
+        else:
+            # Re-add entries for re-subscribed items (minimal, Steam will update on restart)
+            import time
+            existing_pids = set()
+            for key, val in sub_dict.items():
+                if isinstance(val, dict) and "publishedfileid" in val:
+                    existing_pids.add(str(val["publishedfileid"]))
+
+            # Find highest existing numeric key
+            numeric_keys = [int(k) for k in sub_dict.keys() if k.isdigit()]
+            next_key = max(numeric_keys, default=-1) + 1
+
+            for item_id in item_ids:
+                if str(item_id) not in existing_pids:
+                    sub_dict[str(next_key)] = {
+                        "publishedfileid": str(item_id),
+                        "time_subscribed": str(int(time.time())),
+                        "disabled_locally": "0"
+                    }
+                    next_key += 1
+                    affected += 1
+
+        new_vdf = dumps_vdf(data)
+        with open(vdf_path, "w", encoding="utf-8") as f:
+            f.write(new_vdf)
+
+        return affected
+
+    @staticmethod
+    async def set_items_disabled(item_ids: List[str], is_disabled: bool, mode: str = "hybrid") -> Dict[str, Any]:
+        """
+        High-level dispatcher for setting items disabled or enabled.
         Supports: 'mode_a', 'mode_b', 'hybrid'
+
+        Important: Mode B (VDF file edit) only works reliably when Steam is closed.
+        When Steam is running, only Mode A (CEF WebSocket RPC via SharedJSContext) is effective.
+        In hybrid mode: automatically uses Mode A if CEF debugging is available.
         """
         if not item_ids:
             return {"status": "ok", "affected": 0, "mode_used": mode}
 
         cef_ready = SteamService.is_cef_debugging_active()
+        steam_running = SteamService.is_steam_running()
+
         use_mode_a = (mode == "mode_a") or (mode == "hybrid" and cef_ready)
+
+        # Safety: if steam is running but CEF is not available and mode_b forced, warn
+        if mode == "mode_b" and steam_running and not cef_ready:
+            print(f"WARNING: Mode B requested but Steam is running without CEF debug port. "
+                  f"VDF changes will not take effect until Steam restarts.")
+
+        mode_used = "mode_a" if use_mode_a else "mode_b"
+
+        if use_mode_a:
+            ids_json = json.dumps([str(x) for x in item_ids])
+            js = f"SteamClient.Apps.SetWorkshopItemsDisabledLocally({APP_ID}, {ids_json}, {'true' if is_disabled else 'false'});"
+            await SteamService.execute_cef_rpc(js)
+        else:
+            SteamService.execute_vdf_disabled_toggle(item_ids, is_disabled)
+
+        # Update local SQLite database
+        conn = get_connection()
+        cur = conn.cursor()
+        target_int = 1 if is_disabled else 0
+        cur.executemany(
+            "UPDATE workshop_items SET is_disabled = ? WHERE published_file_id = ?",
+            [(target_int, str(i)) for i in item_ids]
+        )
+        conn.commit()
+        conn.close()
+
+        return {
+            "status": "ok",
+            "affected": len(item_ids),
+            "is_disabled": is_disabled,
+            "mode_used": mode_used,
+            "steam_running": steam_running,
+            "cef_available": cef_ready
+        }
+
+    @staticmethod
+    async def set_items_subscription(item_ids: List[str], is_subscribed: bool, mode: str = "hybrid") -> Dict[str, Any]:
+        """
+        High-level dispatcher for subscribing or unsubscribing items.
+        Supports: 'mode_a', 'mode_b', 'hybrid'
+
+        Important: Mode B (VDF file edit) only works reliably when Steam is closed.
+        When Steam is running, only Mode A (CEF WebSocket RPC via SharedJSContext) is effective.
+        """
+        if not item_ids:
+            return {"status": "ok", "affected": 0, "mode_used": mode}
+
+        cef_ready = SteamService.is_cef_debugging_active()
+        steam_running = SteamService.is_steam_running()
+
+        use_mode_a = (mode == "mode_a") or (mode == "hybrid" and cef_ready)
+
+        if mode == "mode_b" and steam_running and not cef_ready:
+            print(f"WARNING: Mode B requested but Steam is running without CEF debug port. "
+                  f"VDF changes will not take effect until Steam restarts.")
+
         mode_used = "mode_a" if use_mode_a else "mode_b"
 
         if use_mode_a:
@@ -283,6 +422,9 @@ class SteamService:
                 return ids.length;
             }})();"""
             await SteamService.execute_cef_rpc(js)
+        else:
+            # Mode B: edit subscriptions.vdf directly (only effective when Steam is closed)
+            SteamService.execute_vdf_subscription_toggle(item_ids, is_subscribed)
 
         # If unsubscribing: delete local folders to free disk space
         if not is_subscribed:
@@ -301,7 +443,7 @@ class SteamService:
         conn = get_connection()
         cur = conn.cursor()
         unsub_int = 0 if is_subscribed else 1
-        # When unsubscribed, also mark as disabled
+        # When unsubscribed, also mark as disabled locally
         disabled_int = 0 if is_subscribed else 1
         cur.executemany(
             "UPDATE workshop_items SET is_unsubscribed = ?, is_disabled = ? WHERE published_file_id = ?",
@@ -314,5 +456,8 @@ class SteamService:
             "status": "ok",
             "affected": len(item_ids),
             "is_subscribed": is_subscribed,
-            "mode_used": mode_used
+            "mode_used": mode_used,
+            "steam_running": steam_running,
+            "cef_available": cef_ready
         }
+
