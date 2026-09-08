@@ -10,7 +10,9 @@ import {
   Power,
   CheckCircle2,
   ClipboardList,
-  Play
+  Play,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { getTagDisplayPath, resolveTagFromPath } from '../utils/tagUtils';
 
@@ -33,7 +35,11 @@ export function RightActionSidebar({
   availableSteamTags = [],
   sidebarWidth = 290,
   tagPathMap,
-  reverseTagPathMap
+  reverseTagPathMap,
+  viewMode = 'grid',
+  setViewMode,
+  cardSize = 2,
+  setCardSize
 }) {
   const [bulkTagInput, setBulkTagInput] = useState('');
 
@@ -131,9 +137,108 @@ export function RightActionSidebar({
   return (
     <aside className="w-full h-full bg-[#171d25] border border-[#22303e] rounded-lg flex flex-col shadow text-xs overflow-hidden select-none">
       
-      {/* Scrollable Upper Section: metrics, selection & tagging */}
+      {/* Scrollable Upper Section: view mode, metrics, selection & tagging */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0 pr-2.5">
         
+        {/* Card View Mode & Size Selector Card */}
+        <div className="bg-[#121922] border border-[#233547] rounded-lg p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-[#8f98a0]">Вигляд карток</span>
+            {/* Mode Switcher Buttons */}
+            <div className="flex items-center gap-0.5 bg-[#17212d] p-0.5 rounded border border-[#233547]">
+              <button
+                type="button"
+                onClick={() => setViewMode && setViewMode('grid')}
+                title="Режим: Сітка"
+                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
+                  viewMode === 'grid'
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode && setViewMode('list')}
+                title="Режим: Список"
+                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
+                  viewMode === 'list'
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Density Range Slider & S/M/L buttons */}
+          <div className="flex items-center gap-2 pt-1.5 border-t border-[#1e2a38]">
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="1"
+              value={cardSize}
+              onChange={(e) => setCardSize && setCardSize(Number(e.target.value))}
+              className="flex-1 accent-[#66c0f4] cursor-pointer h-1 bg-[#202e3d] rounded-lg"
+              title={
+                viewMode === 'grid'
+                  ? cardSize === 1
+                    ? 'Компактна сітка (S)'
+                    : cardSize === 2
+                    ? 'Стандартна сітка (M)'
+                    : 'Велика сітка (L)'
+                  : cardSize === 1
+                  ? 'Список: декілька модів на рядок (вузька картка, S)'
+                  : cardSize === 2
+                  ? 'Список: декілька модів на рядок (широка картка, M)'
+                  : 'Список: 1 мод на рядок (L)'
+              }
+            />
+            {/* S / M / L Button Group */}
+            <div className="flex items-center gap-1 font-mono text-[10.5px] shrink-0">
+              <button
+                type="button"
+                onClick={() => setCardSize && setCardSize(1)}
+                title={viewMode === 'grid' ? 'Компактна сітка (S)' : 'Список: вузькі картки (S)'}
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
+                  cardSize === 1
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold border border-[#385b7a]'
+                    : 'text-gray-400 hover:text-white bg-[#17212d] border border-transparent'
+                }`}
+              >
+                S
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardSize && setCardSize(2)}
+                title={viewMode === 'grid' ? 'Стандартна сітка (M)' : 'Список: широкі картки (M)'}
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
+                  cardSize === 2
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold border border-[#385b7a]'
+                    : 'text-gray-400 hover:text-white bg-[#17212d] border border-transparent'
+                }`}
+              >
+                M
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardSize && setCardSize(3)}
+                title={viewMode === 'grid' ? 'Велика сітка (L)' : 'Список: 1 мод на рядок (L)'}
+                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
+                  cardSize === 3
+                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold border border-[#385b7a]'
+                    : 'text-gray-400 hover:text-white bg-[#17212d] border border-transparent'
+                }`}
+              >
+                L
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Selected Metrics Card */}
         <div className="bg-[#121922] border border-[#233547] rounded-lg p-3 space-y-2.5">
           <div>

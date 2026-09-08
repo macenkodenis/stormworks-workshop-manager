@@ -1343,10 +1343,6 @@ export function App() {
         setSortBy={setSortBy}
         sortDir={sortDir}
         setSortDir={setSortDir}
-        cardSize={cardSize}
-        setCardSize={handleSetCardSize}
-        viewMode={viewMode}
-        setViewMode={handleSetViewMode}
         totalItems={items.length}
         filteredCount={filteredItems.length}
       />
@@ -1490,6 +1486,10 @@ export function App() {
             sidebarWidth={rightWidth}
             tagPathMap={tagPathMap}
             reverseTagPathMap={reverseTagPathMap}
+            viewMode={viewMode}
+            setViewMode={handleSetViewMode}
+            cardSize={cardSize}
+            setCardSize={handleSetCardSize}
           />
         </div>
 

@@ -3,8 +3,6 @@ import stormworksIcon from '../assets/stormworks_icon.png';
 import {
   Search,
   ArrowUpDown,
-  LayoutGrid,
-  List,
   HardDrive,
   RefreshCw,
   Settings,
@@ -23,10 +21,6 @@ export function Header({
   setSortBy,
   sortDir,
   setSortDir,
-  cardSize,
-  setCardSize,
-  viewMode = 'grid',
-  setViewMode,
   totalItems,
   filteredCount
 }) {
@@ -53,10 +47,10 @@ export function Header({
 
   return (
     <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-30 sticky top-0 w-full">
-      <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-2 flex flex-nowrap items-center justify-between gap-2.5 overflow-hidden">
         
         {/* 1. Brand / Game Name Badge */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded bg-[#101822] border border-[#233547] flex items-center justify-center shadow p-1">
             <img
               src={stormworksIcon}
@@ -64,7 +58,7 @@ export function Header({
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-xs bg-[#223447] text-[#66c0f4] px-2.5 py-1 rounded font-mono font-bold border border-[#314b66]">
+          <span className="text-xs bg-[#223447] text-[#66c0f4] px-2.5 py-1 rounded font-mono font-bold border border-[#314b66] whitespace-nowrap">
             Stormworks: Build and Rescue
           </span>
 
@@ -74,7 +68,7 @@ export function Header({
             target="_blank"
             rel="noopener noreferrer"
             title="Відкрити головну сторінку Steam Workshop у новій вкладці"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#101822] hover:bg-[#1b2838] border border-[#233547] hover:border-[#66c0f4] text-gray-300 hover:text-white transition group shadow select-none"
+            className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#101822] hover:bg-[#1b2838] border border-[#233547] hover:border-[#66c0f4] text-gray-300 hover:text-white transition group shadow select-none shrink-0"
           >
             {/* Steam Logo SVG */}
             <svg
@@ -92,9 +86,9 @@ export function Header({
           </a>
         </div>
 
-        {/* 2. Global Search Input */}
-        <div className="relative flex-1 min-w-[220px] max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        {/* 2. Global Search Input (Shrinks when header is constrained) */}
+        <div className="relative flex-1 min-w-[80px] max-w-xl shrink">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none shrink-0" />
           <input
             ref={searchInputRef}
             type="text"
@@ -107,7 +101,7 @@ export function Header({
                 searchInputRef.current?.blur();
               }
             }}
-            className="w-full bg-[#101822] border border-[#26374a] focus:border-[#66c0f4] rounded-md pl-9 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none transition shadow-inner"
+            className="w-full bg-[#101822] border border-[#26374a] focus:border-[#66c0f4] rounded-md pl-9 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none transition shadow-inner truncate"
           />
           {searchQuery && (
             <button
@@ -123,8 +117,8 @@ export function Header({
           )}
         </div>
 
-        {/* 3. Sorting & Card Size Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* 3. Sorting Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
           
           {/* Sorting Dropdown */}
           <div className="flex items-center gap-1.5 bg-[#101822] border border-[#26374a] rounded-md px-2 py-1">
@@ -149,87 +143,6 @@ export function Header({
           >
             {sortDir === 'asc' ? '▲' : '▼'}
           </button>
-
-          {/* View Mode (Grid / List) & Density Selector */}
-          <div className="flex items-center gap-2 bg-[#101822] px-2 py-1 rounded-md border border-[#26374a]">
-            {/* Mode Switcher Buttons */}
-            <div className="flex items-center gap-0.5 bg-[#17212d] p-0.5 rounded border border-[#233547]">
-              <button
-                type="button"
-                onClick={() => setViewMode && setViewMode('grid')}
-                title="Режим: Сітка"
-                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
-                  viewMode === 'grid'
-                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode && setViewMode('list')}
-                title="Режим: Список"
-                className={`p-1 rounded transition cursor-pointer flex items-center justify-center ${
-                  viewMode === 'list'
-                    ? 'bg-[#2a475e] text-[#66c0f4] font-bold shadow-xs'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Density Range Slider */}
-            <input
-              type="range"
-              min="1"
-              max="3"
-              step="1"
-              value={cardSize}
-              onChange={(e) => setCardSize(Number(e.target.value))}
-              className="w-12 sm:w-14 accent-[#66c0f4] cursor-pointer h-1 bg-[#202e3d] rounded-lg"
-              title={
-                viewMode === 'grid'
-                  ? cardSize === 1
-                    ? 'Компактна сітка (S)'
-                    : cardSize === 2
-                    ? 'Стандартна сітка (M)'
-                    : 'Велика сітка (L)'
-                  : cardSize === 1
-                  ? 'Список: декілька модів на рядок (вузька картка, S)'
-                  : cardSize === 2
-                  ? 'Список: декілька модів на рядок (широка картка, M)'
-                  : 'Список: 1 мод на рядок (L)'
-              }
-            />
-
-            {/* S / M / L Button Group */}
-            <div className="flex items-center gap-0.5 font-mono text-[10px]">
-              <button
-                onClick={() => setCardSize(1)}
-                title={viewMode === 'grid' ? 'Компактна сітка (S)' : 'Список: вузькі картки (S)'}
-                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 1 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
-              >
-                S
-              </button>
-              <button
-                onClick={() => setCardSize(2)}
-                title={viewMode === 'grid' ? 'Стандартна сітка (M)' : 'Список: широкі картки (M)'}
-                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 2 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
-              >
-                M
-              </button>
-              <button
-                onClick={() => setCardSize(3)}
-                title={viewMode === 'grid' ? 'Велика сітка (L)' : 'Список: 1 мод на рядок (L)'}
-                className={`px-1.5 py-0.5 rounded transition cursor-pointer ${cardSize === 3 ? 'bg-[#2a475e] text-[#66c0f4] font-bold' : 'text-gray-500 hover:text-white'}`}
-              >
-                L
-              </button>
-            </div>
-          </div>
-
         </div>
 
         {/* 4. Stats Counter & Sync Button */}

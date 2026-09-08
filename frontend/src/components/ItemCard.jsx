@@ -1,6 +1,6 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
-import { getTagDisplayPath } from '../utils/tagUtils';
+import { getTagDisplayPath, estimateTagWidth } from '../utils/tagUtils';
 
 export function ItemCard({
   item,
@@ -62,33 +62,30 @@ export function ItemCard({
       const containerWidth = container.offsetWidth;
       if (containerWidth <= 0) return;
 
-      const children = Array.from(container.children);
-      // Last child is the remainder badge if visible
       let totalWidth = 0;
       let fitCount = 0;
       const gap = 4; // gap-1 is 4px
-      const remainderReserve = 32; // Reserve ~32px for "+N" badge
+      const remainderReserve = 36; // Full reserve for "+N" badge including padding/border
 
       for (let i = 0; i < displayTags.length; i++) {
-        const child = children[i];
-        if (!child) break;
-        const childWidth = child.offsetWidth;
-        const needed = totalWidth + childWidth + (fitCount > 0 ? gap : 0);
+        const { tag, type } = displayTags[i];
+        const isUser = type === 'user';
+        const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+        const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+        const tagWidth = estimateTagWidth(displayLabel, isActive);
+        const needed = totalWidth + tagWidth + (fitCount > 0 ? gap : 0);
         
         // If there are more tags after this one, reserve space for +N
         const hasMore = i < displayTags.length - 1;
         if (needed + (hasMore ? gap + remainderReserve : 0) <= containerWidth) {
           totalWidth = needed;
           fitCount++;
-        } else if (fitCount === 0 && needed <= containerWidth) {
-          // At least fit 1 if it can fit without remainder badge
-          fitCount = 1;
-          break;
         } else {
           break;
         }
       }
 
+      // If even 1 tag cannot fit alongside +N, show 1 tag and allow it to truncate
       setVisibleTagCount(Math.max(1, fitCount));
     };
 
@@ -97,7 +94,7 @@ export function ItemCard({
     const observer = new ResizeObserver(computeFit);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [displayTags.length, item.published_file_id]);
+  }, [displayTags, item.published_file_id, selectedSteamTags, selectedUserTags, tagPathMap]);
 
   // Determine card background based on active selection states
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
@@ -113,6 +110,7 @@ export function ItemCard({
         e.stopPropagation();
         onOpenDetail(item);
       }}
+      data-view-item="card"
       className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-col justify-between select-none ${
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
@@ -286,10 +284,13 @@ export function ItemCard({
                     : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium';
                 }
 
+                const hasOverflow = displayTags.length > visibleTagCount;
+                const maxTagWidth = hasOverflow ? 'max-w-[calc(100%-40px)]' : 'max-w-full';
+
                 return (
                   <span
                     key={`${type}-${tag}-${idx}`}
-                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate max-w-full shrink-0 ${pillStyle}`}
+                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate shrink-0 ${maxTagWidth} ${pillStyle}`}
                     title={displayLabel}
                   >
                     {displayLabel}
@@ -297,7 +298,10 @@ export function ItemCard({
                 );
               })}
               {displayTags.length > visibleTagCount && (
-                <span className="text-xs text-gray-500 font-mono self-center shrink-0">
+                <span
+                  className="text-[10.5px] text-gray-400 font-mono font-medium self-center shrink-0 whitespace-nowrap px-1 py-0.5 bg-[#17222f] rounded border border-[#233547]"
+                  title={`Ще ${displayTags.length - visibleTagCount} прихованих тегів`}
+                >
                   +{displayTags.length - visibleTagCount}
                 </span>
               )}

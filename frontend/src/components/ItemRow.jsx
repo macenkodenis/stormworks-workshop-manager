@@ -1,6 +1,6 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
-import { getTagDisplayPath } from '../utils/tagUtils';
+import { getTagDisplayPath, estimateTagWidth } from '../utils/tagUtils';
 
 export function ItemRow({
   item,
@@ -78,30 +78,29 @@ export function ItemRow({
       const containerWidth = container.offsetWidth;
       if (containerWidth <= 0) return;
 
-      const children = Array.from(container.children);
       let totalWidth = 0;
       let fitCount = 0;
       const gap = 4;
-      const remainderReserve = 32;
+      const remainderReserve = 36; // Full reserve for "+N" badge including padding/border
 
       for (let i = 0; i < displayTags.length; i++) {
-        const child = children[i];
-        if (!child) break;
-        const childWidth = child.offsetWidth;
-        const needed = totalWidth + childWidth + (fitCount > 0 ? gap : 0);
+        const { tag, type } = displayTags[i];
+        const isUser = type === 'user';
+        const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+        const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+        const tagWidth = estimateTagWidth(displayLabel, isActive);
+        const needed = totalWidth + tagWidth + (fitCount > 0 ? gap : 0);
 
         const hasMore = i < displayTags.length - 1;
         if (needed + (hasMore ? gap + remainderReserve : 0) <= containerWidth) {
           totalWidth = needed;
           fitCount++;
-        } else if (fitCount === 0 && needed <= containerWidth) {
-          fitCount = 1;
-          break;
         } else {
           break;
         }
       }
 
+      // If even 1 tag cannot fit alongside +N, show 1 tag and allow it to truncate
       setVisibleTagCount(Math.max(1, fitCount));
     };
 
@@ -110,7 +109,7 @@ export function ItemRow({
     const observer = new ResizeObserver(computeFit);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [displayTags.length, item.published_file_id, cardSize]);
+  }, [displayTags, item.published_file_id, cardSize, selectedSteamTags, selectedUserTags, tagPathMap]);
 
   // Dynamic description line-clamp calculation based on available vertical space
   const descContainerRef = useRef(null);
@@ -161,6 +160,7 @@ export function ItemRow({
         e.stopPropagation();
         onOpenDetail(item);
       }}
+      data-view-item="row"
       className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-row items-stretch select-none overflow-hidden ${
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
@@ -437,10 +437,13 @@ export function ItemRow({
                   : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium';
               }
 
+              const hasOverflow = displayTags.length > visibleTagCount;
+              const maxTagWidth = hasOverflow ? 'max-w-[calc(100%-40px)]' : 'max-w-[200px]';
+
               return (
                 <span
                   key={`${type}-${tag}-${idx}`}
-                  className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none truncate max-w-[200px] shrink-0 ${pillStyle}`}
+                  className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none truncate shrink-0 ${maxTagWidth} ${pillStyle}`}
                   title={displayLabel}
                 >
                   {displayLabel}
@@ -448,7 +451,10 @@ export function ItemRow({
               );
             })}
             {displayTags.length > visibleTagCount && (
-              <span className="text-[10.5px] text-gray-500 font-mono self-center shrink-0">
+              <span
+                className="text-[10px] sm:text-[10.5px] text-gray-400 font-mono font-medium self-center shrink-0 whitespace-nowrap px-1 py-0.5 bg-[#17222f] rounded border border-[#233547]"
+                title={`Ще ${displayTags.length - visibleTagCount} прихованих тегів`}
+              >
                 +{displayTags.length - visibleTagCount}
               </span>
             )}

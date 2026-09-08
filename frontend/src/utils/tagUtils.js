@@ -94,3 +94,41 @@ export function resolveTagFromPath(input, reverseTagPathMap) {
   }
   return input.trim();
 }
+
+let measureSpan = null;
+const tagWidthCache = new Map();
+
+/**
+ * Accurately measures the rendered width of a tag pill in pixels.
+ * Uses a cached hidden DOM span with identical styling to ensure exact fit calculation.
+ */
+export function estimateTagWidth(text, isActive = false) {
+  if (!text) return 0;
+  const cacheKey = `${text}:${isActive ? 1 : 0}`;
+  if (tagWidthCache.has(cacheKey)) {
+    return tagWidthCache.get(cacheKey);
+  }
+  if (typeof document === 'undefined') return text.length * 8 + 16;
+
+  if (!measureSpan) {
+    measureSpan = document.createElement('span');
+    measureSpan.style.position = 'absolute';
+    measureSpan.style.visibility = 'hidden';
+    measureSpan.style.whiteSpace = 'nowrap';
+    measureSpan.style.top = '-9999px';
+    measureSpan.style.left = '-9999px';
+    measureSpan.style.pointerEvents = 'none';
+    document.body.appendChild(measureSpan);
+  }
+
+  measureSpan.className = `text-xs whitespace-nowrap leading-tight select-none inline-block ${
+    isActive
+      ? 'border border-[#66c0f4] px-2 py-0.5 rounded-full font-semibold'
+      : 'border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium'
+  }`;
+  measureSpan.textContent = text;
+  const width = Math.ceil(measureSpan.getBoundingClientRect().width);
+  tagWidthCache.set(cacheKey, width);
+  return width;
+}
+
