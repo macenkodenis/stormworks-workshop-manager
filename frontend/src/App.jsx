@@ -1325,12 +1325,15 @@ export function App() {
     }
 
     if (cardSize === 1) {
-      return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9 gap-3';
+      // New S (was old M): 1 to 7 columns depending on screen width
+      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
     }
-    if (cardSize === 3) {
+    if (cardSize === 2) {
+      // New M (was old L): 1 to 5 columns depending on screen width
       return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-5';
     }
-    return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4';
+    // New L: Proportionally larger card with fewer columns, more space for metadata & description
+    return 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 gap-6';
   }, [cardSize, viewMode]);
 
   // Mod index in current filtered list for modal navigation
@@ -1468,6 +1471,7 @@ export function App() {
                     pendingAction={pendingActions[item.published_file_id] || null}
                     onRemovePendingAction={handleRemoveFromPlan}
                     tagPathMap={tagPathMap}
+                    cardSize={cardSize}
                   />
                 );
               })}

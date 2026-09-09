@@ -1,6 +1,15 @@
 import React, { useRef, useState, useLayoutEffect, useMemo } from 'react';
-import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
+import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
 import { getTagDisplayPath, estimateTagWidth, observeElementResize } from '../utils/tagUtils';
+
+const cleanDescription = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/\[\/?(b|i|u|h[1-6]|url|quote|code|list|\*|table|tr|th|td|img|previewimg|strike|spoiler|noparse)[^\]]*\]/gi, ' ')
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 export const ItemCard = React.memo(function ItemCard({
   item,
@@ -14,7 +23,8 @@ export const ItemCard = React.memo(function ItemCard({
   onToggleFavorite,
   pendingAction = null,
   onRemovePendingAction,
-  tagPathMap
+  tagPathMap,
+  cardSize = 2
 }) {
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -53,6 +63,7 @@ export const ItemCard = React.memo(function ItemCard({
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
   const authorName = item.creator_name || item.creator;
+  const descriptionSnippet = useMemo(() => cleanDescription(item.description), [item.description]);
 
   // Dynamic tags fitting to fill entire card width (single line)
   const tagsContainerRef = useRef(null);
@@ -97,7 +108,7 @@ export const ItemCard = React.memo(function ItemCard({
     computeFit();
 
     return observeElementResize(container, computeFit);
-  }, [displayTags, item.published_file_id, selectedSteamTags, selectedUserTags, tagPathMap]);
+  }, [displayTags, item.published_file_id, cardSize, selectedSteamTags, selectedUserTags, tagPathMap]);
 
   // Determine card background based on active selection states
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
@@ -119,7 +130,7 @@ export const ItemCard = React.memo(function ItemCard({
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
       style={{
         contentVisibility: 'auto',
-        containIntrinsicSize: '320px 240px',
+        containIntrinsicSize: cardSize === 3 ? '440px 480px' : cardSize === 2 ? '340px 380px' : '260px 320px',
         filter: isUnsubscribed ? 'grayscale(100%)' : undefined,
         boxShadow: isAnchor
           ? '0 0 16px 3px rgba(102, 192, 244, 0.45), 0 0 4px 1px rgba(102, 192, 244, 0.6)'
@@ -243,41 +254,101 @@ export const ItemCard = React.memo(function ItemCard({
       </div>
 
       {/* Item Body */}
-      <div className="@container p-3 flex-1 flex flex-col justify-between">
+      <div className={`@container ${cardSize === 3 ? 'p-3.5 sm:p-4' : 'p-3'} flex-1 flex flex-col justify-between`}>
         <div>
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold text-white line-clamp-2 leading-tight group-hover:text-[#66c0f4] transition" title={item.title}>
+            <h3
+              className={`${cardSize === 3 ? 'text-base font-bold' : 'text-sm font-semibold'} text-white line-clamp-2 leading-tight group-hover:text-[#66c0f4] transition`}
+              title={item.title}
+            >
               {item.title}
             </h3>
           </div>
 
-          <div className="mt-1 flex items-center justify-between gap-1.5 text-xs text-[#8f98a0] min-w-0">
-            {authorName ? (
+          {/* Info line under title */}
+          {cardSize === 3 ? (
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-[#8f98a0] min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                {authorName && (
+                  <span
+                    className="truncate text-[11.5px] sm:text-xs text-[#8f98a0] min-w-0 flex items-center max-w-[170px]"
+                    title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                  >
+                    <span className="text-[#657484] mr-1 shrink-0">автор:</span>
+                    <span className="text-gray-300 font-medium truncate">{authorName}</span>
+                  </span>
+                )}
+                <a
+                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 items-center gap-1 font-mono text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap inline-flex"
+                  title="Відкрити сторінку мода в Steam Workshop"
+                >
+                  ID: {item.published_file_id}
+                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </a>
+              </div>
+
+              {/* Organization badge for L mode */}
               <span
-                className="truncate text-[11px] text-[#8f98a0] min-w-0 flex items-center"
-                title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
+                  item.is_sorted
+                    ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
+                    : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
+                }`}
+                title={item.is_sorted ? 'Організація: Відсортовано' : 'Організація: Не відсортовано'}
               >
-                <span className="text-[#657484] mr-1 shrink-0">автор:</span>
-                <span className="text-gray-300 font-medium truncate">{authorName}</span>
+                {item.is_sorted ? 'Відсортовано' : 'Не відсортовано'}
               </span>
-            ) : (
-              <span className="font-mono text-[11px] text-[#8f98a0]">ID: {item.published_file_id}</span>
-            )}
-            <a
-              href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="hover:text-[#66c0f4] flex items-center gap-1 text-[11px] shrink-0"
-              title="Відкрити в Steam Workshop"
-            >
-              Steam <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+            </div>
+          ) : (
+            <div className="mt-1 flex items-center justify-between gap-1.5 text-xs text-[#8f98a0] min-w-0">
+              {authorName ? (
+                <span
+                  className="truncate text-[11px] text-[#8f98a0] min-w-0 flex items-center"
+                  title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                >
+                  <span className="text-[#657484] mr-1 shrink-0">автор:</span>
+                  <span className="text-gray-300 font-medium truncate">{authorName}</span>
+                </span>
+              ) : (
+                <span className="font-mono text-[11px] text-[#8f98a0]">ID: {item.published_file_id}</span>
+              )}
+              <a
+                href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="hover:text-[#66c0f4] flex items-center gap-1 text-[11px] shrink-0"
+                title="Відкрити в Steam Workshop"
+              >
+                Steam <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+
+          {/* Partial description for L cards */}
+          {cardSize === 3 && descriptionSnippet && (
+            <div className="mt-2 text-xs sm:text-[12.5px] text-[#8f98a0] leading-relaxed">
+              <p
+                style={{
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: 3,
+                  overflow: 'hidden'
+                }}
+                title={descriptionSnippet}
+              >
+                {descriptionSnippet}
+              </p>
+            </div>
+          )}
 
           {/* Unified Tags: text-xs matching left column, fills entire width, remainder badge on overflow */}
           {displayTags.length > 0 && (
-            <div ref={tagsContainerRef} className="mt-2.5 flex items-center gap-1 w-full overflow-hidden">
+            <div ref={tagsContainerRef} className={`${cardSize === 3 ? 'mt-3' : 'mt-2.5'} flex items-center gap-1 w-full overflow-hidden`}>
               {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
                 const isUser = type === 'user';
                 const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
@@ -319,8 +390,8 @@ export const ItemCard = React.memo(function ItemCard({
           )}
         </div>
 
-        {/* Footer info: updated date, mod size, and status */}
-        <div className="mt-3 pt-2 border-t border-[#233547]/60 flex items-center justify-between gap-1 text-[11px] text-[#758494] min-w-0">
+        {/* Footer info: updated date, mod size, created date (L mode), and status */}
+        <div className={`${cardSize === 3 ? 'mt-3.5 pt-2.5' : 'mt-3 pt-2'} border-t border-[#233547]/60 flex items-center justify-between gap-1 text-[11px] text-[#758494] min-w-0`}>
           <div className="flex items-center gap-2 font-mono text-[10.5px] min-w-0">
             {/* Local size badge: hidden if width < 130px (hiding priority before author) */}
             <div
@@ -339,6 +410,17 @@ export const ItemCard = React.memo(function ItemCard({
               <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
               <span>{formatDate(item.time_updated || item.local_mtime)}</span>
             </div>
+
+            {/* Created date for L mode: drops if width < 360px */}
+            {cardSize === 3 && item.time_created && (
+              <div
+                className="hidden @min-[360px]:flex items-center gap-1 text-[#758494] shrink-0"
+                title="Дата створення: dd.mm.yy"
+              >
+                <Clock className="w-3 h-3 text-gray-500 shrink-0" />
+                <span>{formatDate(item.time_created)}</span>
+              </div>
+            )}
           </div>
 
           {/* Status Indicator (analogue of ItemDetailModal) */}
