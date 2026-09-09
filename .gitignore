@@ -12,3 +12,5 @@ backend/*.db*
 # Build outputs
 backend/static/assets/
 backend/static/index.html
+build/
+dist/
