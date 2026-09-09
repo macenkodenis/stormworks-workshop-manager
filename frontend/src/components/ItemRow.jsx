@@ -502,7 +502,7 @@ export const ItemRow = React.memo(function ItemRow({
             onMouseEnter={handleTagsMouseEnter}
             onMouseLeave={handleTagsMouseLeave}
           >
-            <div ref={tagsContainerRef} className="flex items-center gap-1 w-full overflow-hidden min-w-0">
+            <div ref={tagsContainerRef} className={`flex items-center gap-1 w-full overflow-hidden min-w-0 ${showTagsPopover ? 'invisible' : ''}`}>
               {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
                 const isUser = type === 'user';
                 const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
@@ -552,7 +552,7 @@ export const ItemRow = React.memo(function ItemRow({
             {/* Overflow Popover showing full list of tags */}
             {showTagsPopover && displayTags.length > visibleTagCount && (
               <div
-                className="absolute bottom-full left-0 mb-1.5 z-50 min-w-[240px] max-w-[420px] max-h-52 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-2.5 flex flex-wrap gap-1.5"
+                className="absolute -bottom-1.5 -left-1.5 -right-1.5 z-50 min-w-[calc(100%+12px)] max-h-60 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-1.5 flex flex-col justify-end"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -560,41 +560,43 @@ export const ItemRow = React.memo(function ItemRow({
                 onMouseEnter={handleTagsMouseEnter}
                 onMouseLeave={handleTagsMouseLeave}
               >
-                <div className="w-full flex items-center justify-between pb-1.5 mb-0.5 border-b border-[#233547]/80 text-[11px] text-[#8f98a0]">
+                <div className="w-full flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#233547]/80 text-[11px] text-[#8f98a0]">
                   <span className="font-semibold text-gray-300">Всі теги ({displayTags.length})</span>
                   <span className="text-[10px] text-[#657484]">Ctrl+клік для кількох</span>
                 </div>
-                {displayTags.map(({ tag, type }, idx) => {
-                  const isUser = type === 'user';
-                  const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
-                  const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
-                  let pillStyle = '';
-                  if (isActive) {
-                    pillStyle = isUser
-                      ? 'border border-[#f49e42] bg-[#332211] text-[#ffd699] font-semibold px-2 py-0.5 rounded-full shadow-xs'
-                      : 'border border-[#66c0f4] bg-[#162738] text-[#cce8ff] font-semibold px-2 py-0.5 rounded-full shadow-xs';
-                  } else {
-                    pillStyle = isUser
-                      ? 'bg-[#151a22] text-[#f49e42] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#f49e42]/60'
-                      : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#66c0f4]/60';
-                  }
-                  return (
-                    <span
-                      key={`popover-${type}-${tag}-${idx}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const isCtrl = e.ctrlKey || e.metaKey;
-                        if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
-                        else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
-                      }}
-                      className={`text-xs whitespace-nowrap leading-tight transition select-none cursor-pointer ${pillStyle}`}
-                      title={`Фільтрувати за тегом: ${displayLabel}`}
-                    >
-                      {displayLabel}
-                    </span>
-                  );
-                })}
+                <div className="flex flex-wrap-reverse gap-1 items-center">
+                  {displayTags.map(({ tag, type }, idx) => {
+                    const isUser = type === 'user';
+                    const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+                    const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+                    let pillStyle = '';
+                    if (isActive) {
+                      pillStyle = isUser
+                        ? 'border border-[#f49e42] bg-[#332211] text-[#ffd699] font-semibold px-2 py-0.5 rounded-full shadow-xs'
+                        : 'border border-[#66c0f4] bg-[#162738] text-[#cce8ff] font-semibold px-2 py-0.5 rounded-full shadow-xs';
+                    } else {
+                      pillStyle = isUser
+                        ? 'bg-[#151a22] text-[#f49e42] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#f49e42]/60'
+                        : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#66c0f4]/60';
+                    }
+                    return (
+                      <span
+                        key={`popover-${type}-${tag}-${idx}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const isCtrl = e.ctrlKey || e.metaKey;
+                          if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
+                          else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
+                        }}
+                        className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none cursor-pointer ${pillStyle}`}
+                        title={`Фільтрувати за тегом: ${displayLabel}`}
+                      >
+                        {displayLabel}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
