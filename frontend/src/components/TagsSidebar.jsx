@@ -8,10 +8,12 @@ import {
   BookmarkCheck,
   Plus,
   Star,
-  Folder,
-  FolderOpen,
-  Trash2
+  Trash2,
+  ChevronsUpDown,
+  ChevronsDownUp,
+  CornerUpLeft
 } from 'lucide-react';
+import { migrateLegacyTree } from '../utils/tagUtils';
 
 export function TagsSidebar({
   steamTagsWithCounts,
@@ -38,14 +40,11 @@ export function TagsSidebar({
   const [tagError, setTagError] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
 
-  // Group tree state: array of nodes:
-  // Node: { id, type: 'tag' | 'group', tag?: string, tagType?: 'steam' | 'user', name?: string, children?: Node[] }
+  // Tag tree state: array of nodes:
+  // Node: { id, type: 'tag', tag: string, tagType: 'steam' | 'user', children?: Node[] }
   const [tree, setTree] = useState([]);
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [collapsedTags, setCollapsedTags] = useState(new Set());
   const [tagFilterQuery, setTagFilterQuery] = useState('');
-  const [editingGroupId, setEditingGroupId] = useState(null);
-  const [editingGroupName, setEditingGroupName] = useState('');
-  const [renameError, setRenameError] = useState('');
 
   // Selection Anchor for Shift+click range selection
   const [anchorKey, setAnchorKey] = useState(null);
@@ -54,6 +53,7 @@ export function TagsSidebar({
   const [draggedNode, setDraggedNode] = useState(null);
   const [dropTarget, setDropTarget] = useState(null); // { targetId, position: 'before' | 'inside' | 'after' }
   const isDraggingRef = useRef(false);
+  const draggedNodeRef = useRef(null);
 
   // Helper to test if a tag is a game version tag
   const isVersionTag = (tagName) => {
@@ -102,9 +102,14 @@ export function TagsSidebar({
       .then(res => res.json())
       .then(data => {
         if (data && Array.isArray(data.structure) && data.structure.length > 0) {
-          setTree(data.structure);
+          const migrated = migrateLegacyTree(data.structure);
+          setTree(migrated);
           if (onTagStructureChange) {
-            onTagStructureChange(data.structure);
+            onTagStructureChange(migrated);
+          }
+          const hadLegacyGroups = JSON.stringify(data.structure).includes('"type":"group"');
+          if (hadLegacyGroups) {
+            saveTreeToBackend(migrated);
           }
         }
         hasLoadedRef.current = true;
@@ -146,7 +151,8 @@ export function TagsSidebar({
         nodes.forEach(node => {
           if (node.type === 'tag') {
             presentTags.add(`${node.tagType || 'steam'}:${node.tag}`);
-          } else if (node.type === 'group' && node.children) {
+          }
+          if (Array.isArray(node.children)) {
             collectTags(node.children);
           }
         });
@@ -163,7 +169,8 @@ export function TagsSidebar({
             id: `tag-steam-${tag}`,
             type: 'tag',
             tag: tag,
-            tagType: 'steam'
+            tagType: 'steam',
+            children: []
           });
         }
       });
@@ -176,7 +183,8 @@ export function TagsSidebar({
             id: `tag-user-${tag}`,
             type: 'tag',
             tag: tag,
-            tagType: 'user'
+            tagType: 'user',
+            children: []
           });
         }
       });
@@ -194,66 +202,58 @@ export function TagsSidebar({
   // Visibility check: Steam tags with 0 items are hidden from sidebar, but user tags with 0 remain; plus tagFilterQuery
   const isNodeVisible = (node) => {
     const q = tagFilterQuery.trim().toLowerCase();
-    if (node.type === 'tag') {
-      const matchesText = !q || (node.tag && node.tag.toLowerCase().includes(q));
-      if (node.tagType === 'steam') {
-        return matchesText && activeSteamTagNames.has(node.tag);
-      }
-      return matchesText;
+    const matchesText = !q || (node.tag && node.tag.toLowerCase().includes(q));
+    let isSelfActive = true;
+    if (node.tagType === 'steam') {
+      isSelfActive = activeSteamTagNames.has(node.tag);
     }
-    if (node.type === 'group') {
-      const groupMatches = !q || (node.name && node.name.toLowerCase().includes(q));
-      if (!node.children || node.children.length === 0) return groupMatches;
-      return groupMatches || node.children.some(child => isNodeVisible(child));
-    }
-    return false;
+    const hasVisibleChildren = Array.isArray(node.children) && node.children.some(isNodeVisible);
+    return (matchesText && isSelfActive) || hasVisibleChildren;
   };
 
-  const getAllGroupIds = (nodes) => {
+  const getAllParentTagIds = (nodes) => {
     let ids = [];
     nodes.forEach(n => {
-      if (n.type === 'group') {
+      if (Array.isArray(n.children) && n.children.length > 0) {
         ids.push(n.id);
-        if (Array.isArray(n.children)) {
-          ids = ids.concat(getAllGroupIds(n.children));
-        }
+        ids = ids.concat(getAllParentTagIds(n.children));
       }
     });
     return ids;
   };
 
   const handleExpandAll = () => {
-    setCollapsedGroups(new Set());
+    setCollapsedTags(new Set());
   };
 
   const handleCollapseAll = () => {
-    setCollapsedGroups(new Set(getAllGroupIds(tree)));
+    setCollapsedTags(new Set(getAllParentTagIds(tree)));
+  };
+
+  const handleToggleTagCollapse = (e, tagId) => {
+    e.stopPropagation();
+    setCollapsedTags(prev => {
+      const next = new Set(prev);
+      if (next.has(tagId)) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      return next;
+    });
   };
 
   // Helper to extract all tags recursively inside a node
   const collectTagsFromNode = (node, res = { steam: [], user: [] }) => {
-    if (node.type === 'tag') {
-      if (node.tagType === 'steam') {
-        res.steam.push(node.tag);
-      } else {
-        res.user.push(node.tag);
-      }
-    } else if (node.type === 'group' && Array.isArray(node.children)) {
+    if (node.tagType === 'steam') {
+      res.steam.push(node.tag);
+    } else {
+      res.user.push(node.tag);
+    }
+    if (Array.isArray(node.children)) {
       node.children.forEach(child => collectTagsFromNode(child, res));
     }
     return res;
-  };
-
-  // Check if group is active
-  const isGroupSelected = (groupNode) => {
-    const { steam, user } = collectTagsFromNode(groupNode);
-    const visibleSteam = steam.filter(t => activeSteamTagNames.has(t));
-    const totalVisible = visibleSteam.length + user.length;
-    if (totalVisible === 0) return false;
-
-    const allSteamSelected = visibleSteam.every(t => selectedTags.has(t));
-    const allUserSelected = user.every(t => selectedUserTags.has(t));
-    return allSteamSelected && allUserSelected;
   };
 
   // Flatten currently visible and expanded tree nodes into sequential list for Shift+click range selection
@@ -263,8 +263,8 @@ export function TagsSidebar({
       nodes.forEach(node => {
         if (!isNodeVisible(node)) return;
         list.push(node);
-        if (node.type === 'group') {
-          if (!collapsedGroups.has(node.id) && Array.isArray(node.children)) {
+        if (Array.isArray(node.children) && node.children.length > 0) {
+          if (!collapsedTags.has(node.id)) {
             traverse(node.children);
           }
         }
@@ -272,7 +272,7 @@ export function TagsSidebar({
     };
     traverse(tree);
     return list;
-  }, [tree, collapsedGroups, activeSteamTagNames]);
+  }, [tree, collapsedTags, activeSteamTagNames, tagFilterQuery]);
 
   // Multi-selection range logic (Shift+click)
   const handleRangeSelect = (targetNode) => {
@@ -307,7 +307,7 @@ export function TagsSidebar({
     }
   };
 
-  // Node Selection Handler (Tag or Group)
+  // Node Selection Handler (Tag)
   const handleNodeClick = (e, node) => {
     if (isDraggingRef.current) return;
 
@@ -326,126 +326,9 @@ export function TagsSidebar({
     if (setAsAnchor) {
       setAnchorKey(node.id);
     }
-
-    if (node.type === 'tag') {
-      const isSteam = node.tagType === 'steam';
-      if (isSteam) onToggleTag(node.tag);
-      else onToggleUserTag(node.tag);
-    } else if (node.type === 'group') {
-      const { steam, user } = collectTagsFromNode(node);
-      const visibleSteam = steam.filter(t => activeSteamTagNames.has(t));
-      const isAlreadySelected = isGroupSelected(node);
-
-      if (isAlreadySelected) {
-        if (onBatchSetTags) onBatchSetTags(visibleSteam, user, 'remove');
-      } else {
-        if (onBatchSetTags) onBatchSetTags(visibleSteam, user, 'add');
-      }
-    }
-  };
-
-  // Toggle Collapse/Expand of group
-  const handleToggleGroupCollapse = (e, groupId) => {
-    e.stopPropagation();
-    setCollapsedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
-  };
-
-  // Helper to extract all existing group names from tree
-  const getAllGroupNames = (nodes, excludeId = null) => {
-    const names = [];
-    const traverse = (items) => {
-      items.forEach(it => {
-        if (it.type === 'group') {
-          if (!excludeId || it.id !== excludeId) {
-            names.push(it.name);
-          }
-          if (it.children) traverse(it.children);
-        }
-      });
-    };
-    traverse(nodes);
-    return names;
-  };
-
-  // Rename group on double-click
-  const handleStartRename = (e, group) => {
-    e.stopPropagation();
-    setEditingGroupId(group.id);
-    setEditingGroupName(group.name);
-    setRenameError('');
-  };
-
-  const handleFinishRename = (groupId, save) => {
-    if (save && editingGroupName.trim()) {
-      const newName = editingGroupName.trim();
-      
-      // Check for collision with other groups (case-insensitive)
-      const existingNames = getAllGroupNames(tree, groupId);
-      const isDuplicate = existingNames.some(
-        name => name.trim().toLowerCase() === newName.toLowerCase()
-      );
-
-      if (isDuplicate) {
-        setRenameError('Папка з такою назвою вже існує');
-        return; // Keep input open so user sees error and can change it
-      }
-
-      const updateName = (nodes) => {
-        return nodes.map(n => {
-          if (n.id === groupId) {
-            return { ...n, name: newName };
-          }
-          if (n.type === 'group' && n.children) {
-            return { ...n, children: updateName(n.children) };
-          }
-          return n;
-        });
-      };
-      const updatedTree = updateName(tree);
-      setTree(updatedTree);
-      saveTreeToBackend(updatedTree);
-    }
-    setEditingGroupId(null);
-    setEditingGroupName('');
-    setRenameError('');
-  };
-
-  // Delete a group: unrolls/unpacks all children into the parent container (where the group was located)
-  const handleDeleteGroup = (e, groupId) => {
-    e.stopPropagation();
-    const unpackGroup = (nodes) => {
-      const next = [];
-      for (const n of nodes) {
-        if (n.id === groupId) {
-          // Unroll children into this same level/directory
-          if (Array.isArray(n.children) && n.children.length > 0) {
-            next.push(...n.children);
-          }
-        } else {
-          if (n.type === 'group' && n.children) {
-            next.push({
-              ...n,
-              children: unpackGroup(n.children)
-            });
-          } else {
-            next.push(n);
-          }
-        }
-      }
-      return next;
-    };
-
-    const updatedTree = unpackGroup(tree);
-    setTree(updatedTree);
-    saveTreeToBackend(updatedTree);
+    const isSteam = node.tagType === 'steam';
+    if (isSteam) onToggleTag(node.tag);
+    else onToggleUserTag(node.tag);
   };
 
   // Delete a user tag node: removes from tree and invokes backend deletion across items
@@ -453,42 +336,68 @@ export function TagsSidebar({
     e.stopPropagation();
     if (node.tagType !== 'user') return;
 
-    // Remove from tree
-    const removeTagNode = (nodes) => {
+    // Remove from tree, unnesting any children into parent level
+    const removeAndUnpack = (nodes) => {
       const next = [];
       for (const n of nodes) {
         if (n.id === node.id || (n.type === 'tag' && n.tagType === 'user' && n.tag === node.tag)) {
-          // omit
-        } else {
-          if (n.type === 'group' && n.children) {
-            next.push({
-              ...n,
-              children: removeTagNode(n.children)
-            });
-          } else {
-            next.push(n);
+          if (Array.isArray(n.children) && n.children.length > 0) {
+            next.push(...n.children);
           }
+        } else {
+          const cloneNode = { ...n };
+          if (Array.isArray(n.children)) {
+            cloneNode.children = removeAndUnpack(n.children);
+          }
+          next.push(cloneNode);
         }
       }
       return next;
     };
 
-    const updatedTree = removeTagNode(tree);
+    const updatedTree = removeAndUnpack(tree);
     setTree(updatedTree);
     saveTreeToBackend(updatedTree);
 
-    // Call backend delete
     if (onDeleteUserTag) {
       onDeleteUserTag(node.tag);
     }
   };
 
+  // Quick action: Unnest a child tag back to the root level
+  const handleUnnestTag = (e, tagId) => {
+    e.stopPropagation();
+    let extracted = null;
+    const removeNode = (nodes) => {
+      const next = [];
+      for (const n of nodes) {
+        if (n.id === tagId) {
+          extracted = n;
+        } else {
+          const cloneNode = { ...n };
+          if (Array.isArray(n.children)) {
+            cloneNode.children = removeNode(n.children);
+          }
+          next.push(cloneNode);
+        }
+      }
+      return next;
+    };
+
+    const filtered = removeNode(tree);
+    if (extracted) {
+      const updated = [...filtered, extracted];
+      setTree(updated);
+      saveTreeToBackend(updated);
+    }
+  };
+
   // Check if target is descendant of candidate (prevent cyclic nesting)
-  const isDescendant = (parentGroup, targetId) => {
-    if (!parentGroup.children) return false;
-    for (const child of parentGroup.children) {
+  const isDescendant = (parentCandidate, targetId) => {
+    if (!parentCandidate || !Array.isArray(parentCandidate.children)) return false;
+    for (const child of parentCandidate.children) {
       if (child.id === targetId) return true;
-      if (child.type === 'group' && isDescendant(child, targetId)) return true;
+      if (isDescendant(child, targetId)) return true;
     }
     return false;
   };
@@ -496,6 +405,7 @@ export function TagsSidebar({
   // Drag and Drop Logic
   const handleDragStart = (e, node) => {
     isDraggingRef.current = true;
+    draggedNodeRef.current = node;
     setDraggedNode(node);
     e.dataTransfer.setData('text/plain', node.id);
     e.dataTransfer.effectAllowed = 'move';
@@ -504,6 +414,7 @@ export function TagsSidebar({
   const handleDragEnd = () => {
     setTimeout(() => {
       isDraggingRef.current = false;
+      draggedNodeRef.current = null;
     }, 50);
     setDraggedNode(null);
     setDropTarget(null);
@@ -513,12 +424,13 @@ export function TagsSidebar({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!draggedNode || draggedNode.id === node.id) {
+    const currentDragged = draggedNodeRef.current || draggedNode;
+    if (!currentDragged || currentDragged.id === node.id) {
       setDropTarget(null);
       return;
     }
 
-    if (draggedNode.type === 'group' && isDescendant(draggedNode, node.id)) {
+    if (isDescendant(currentDragged, node.id)) {
       setDropTarget(null);
       return;
     }
@@ -550,26 +462,43 @@ export function TagsSidebar({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!draggedNode || !dropTarget || draggedNode.id === targetNode.id) {
+    const currentDragged = draggedNodeRef.current || draggedNode;
+    if (!currentDragged || currentDragged.id === targetNode.id) {
       setDraggedNode(null);
       setDropTarget(null);
       return;
     }
 
-    const { position } = dropTarget;
+    let position = 'inside';
+    if (dropTarget && dropTarget.targetId === targetNode.id) {
+      position = dropTarget.position;
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clientY = e.clientY - rect.top;
+      const height = rect.height;
+      if (clientY < height * 0.28) {
+        position = 'before';
+      } else if (clientY > height * 0.72) {
+        position = 'after';
+      } else {
+        position = 'inside';
+      }
+    }
+
     const clone = JSON.parse(JSON.stringify(tree));
 
     let extracted = null;
     const removeNode = (nodes) => {
       const next = [];
       for (const n of nodes) {
-        if (n.id === draggedNode.id) {
+        if (n.id === currentDragged.id) {
           extracted = n;
         } else {
-          if (n.type === 'group' && n.children) {
-            n.children = removeNode(n.children);
+          const cloneNode = { ...n };
+          if (Array.isArray(n.children)) {
+            cloneNode.children = removeNode(n.children);
           }
-          next.push(n);
+          next.push(cloneNode);
         }
       }
       return next;
@@ -577,50 +506,12 @@ export function TagsSidebar({
 
     let updatedTree = removeNode(clone);
     if (!extracted) {
-      extracted = draggedNode;
+      extracted = currentDragged;
     }
 
-    // CASE 1: Drag tag directly onto another tag -> Create new group
-    if (targetNode.type === 'tag' && extracted.type === 'tag' && position === 'inside') {
-      const existingNames = getAllGroupNames(updatedTree).map(n => n.toLowerCase());
-      let groupName = 'Нова група';
-      if (existingNames.includes(groupName.toLowerCase())) {
-        let counter = 1;
-        while (existingNames.includes(`нова група (${counter})`)) {
-          counter++;
-        }
-        groupName = `Нова група (${counter})`;
-      }
-
-      const newGroupId = `group-${Date.now()}`;
-      const newGroup = {
-        id: newGroupId,
-        type: 'group',
-        name: groupName,
-        children: [extracted]
-      };
-
-      const replaceTagWithGroup = (nodes) => {
-        const next = [];
-        for (const n of nodes) {
-          if (n.id === targetNode.id) {
-            newGroup.children.push(n);
-            next.push(newGroup);
-          } else {
-            if (n.type === 'group' && n.children) {
-              n.children = replaceTagWithGroup(n.children);
-            }
-            next.push(n);
-          }
-        }
-        return next;
-      };
-
-      updatedTree = replaceTagWithGroup(updatedTree);
-    }
-    // CASE 2: Drop inside a group
-    else if (targetNode.type === 'group' && position === 'inside') {
-      const insertIntoGroup = (nodes) => {
+    // CASE 1: Drop inside target tag -> Add to targetNode.children
+    if (position === 'inside') {
+      const insertIntoTag = (nodes) => {
         return nodes.map(n => {
           if (n.id === targetNode.id) {
             return {
@@ -628,20 +519,21 @@ export function TagsSidebar({
               children: [...(n.children || []), extracted]
             };
           }
-          if (n.type === 'group' && n.children) {
-            return { ...n, children: insertIntoGroup(n.children) };
+          if (Array.isArray(n.children)) {
+            return { ...n, children: insertIntoTag(n.children) };
           }
           return n;
         });
       };
-      updatedTree = insertIntoGroup(updatedTree);
-      setCollapsedGroups(prev => {
+      updatedTree = insertIntoTag(updatedTree);
+      // Auto-expand target tag so newly nested child is immediately visible
+      setCollapsedTags(prev => {
         const next = new Set(prev);
         next.delete(targetNode.id);
         return next;
       });
     }
-    // CASE 3: Insert before or after targetNode
+    // CASE 2: Insert before or after targetNode (as sibling)
     else {
       const insertAdjacent = (nodes) => {
         const next = [];
@@ -655,10 +547,11 @@ export function TagsSidebar({
               next.push(extracted);
             }
           } else {
-            if (n.type === 'group' && n.children) {
-              n.children = insertAdjacent(n.children);
+            const cloneNode = { ...n };
+            if (Array.isArray(n.children)) {
+              cloneNode.children = insertAdjacent(n.children);
             }
-            next.push(n);
+            next.push(cloneNode);
           }
         }
         return next;
@@ -703,7 +596,7 @@ export function TagsSidebar({
       const hasTag = (nodes) => {
         for (const n of nodes) {
           if (n.type === 'tag' && n.tagType === 'user' && n.tag.toLowerCase() === tagLower) return true;
-          if (n.type === 'group' && n.children && hasTag(n.children)) return true;
+          if (Array.isArray(n.children) && hasTag(n.children)) return true;
         }
         return false;
       };
@@ -712,7 +605,8 @@ export function TagsSidebar({
         id: nodeId,
         type: 'tag',
         tag: tag,
-        tagType: 'user'
+        tagType: 'user',
+        children: []
       };
       const updated = [...prev, newNode];
       saveTreeToBackend(updated);
@@ -740,11 +634,10 @@ export function TagsSidebar({
     (systemFilter.sort ? 1 : 0) +
     (systemFilter.favorite ? 1 : 0);
 
-  // Recursive Tree Node Renderer
+  // Recursive Tree Node Renderer for Tags
   const renderTreeNode = (node, depth = 0) => {
     if (!isNodeVisible(node)) return null;
 
-    const isGroup = node.type === 'group';
     const isTarget = dropTarget && dropTarget.targetId === node.id;
     const dropPos = isTarget ? dropTarget.position : null;
 
@@ -754,124 +647,17 @@ export function TagsSidebar({
     } else if (dropPos === 'after') {
       dropClass = 'border-b-2 border-[#66c0f4]';
     } else if (dropPos === 'inside') {
-      dropClass = isGroup
-        ? 'ring-2 ring-[#66c0f4] bg-[#1a2b3c]/60 rounded'
-        : 'ring-2 ring-[#f49e42] bg-[#3a2818]/60 rounded';
+      dropClass = 'ring-2 ring-[#66c0f4] bg-[#1a2d42]/70 rounded';
     }
 
-    if (isGroup) {
-      const isCollapsed = collapsedGroups.has(node.id);
-      const isSelected = isGroupSelected(node);
-      const isEditing = editingGroupId === node.id;
-      const { steam, user } = collectTagsFromNode(node);
-      const visibleSteamCount = steam.filter(t => activeSteamTagNames.has(t)).length;
-      const totalTagsInGroup = visibleSteamCount + user.length;
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+    const isCollapsed = collapsedTags.has(node.id);
 
-      return (
-        <div key={node.id} className={`flex flex-col select-none ${dropClass}`}>
-          {/* Group Header Row */}
-          <div
-            draggable
-            onDragStart={(e) => handleDragStart(e, node)}
-            onDragEnd={handleDragEnd}
-            onDragOver={(e) => handleDragOver(e, node)}
-            onDragLeave={(e) => handleDragLeave(e, node)}
-            onDrop={(e) => handleDrop(e, node)}
-            onClick={(e) => handleNodeClick(e, node)}
-            onDoubleClick={(e) => handleStartRename(e, node)}
-            style={{ paddingLeft: `${depth * 12 + 4}px` }}
-            className={`group/header flex items-center justify-between py-1 px-1.5 rounded cursor-pointer transition ${
-              isSelected
-                ? 'bg-[#1e2f42] text-white font-semibold'
-                : 'hover:bg-[#121c27] text-gray-300 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 truncate mr-2">
-              {/* Expand / Collapse Chevron Button */}
-              <button
-                type="button"
-                onClick={(e) => handleToggleGroupCollapse(e, node.id)}
-                className="p-0.5 rounded hover:bg-[#253547] text-gray-400 hover:text-white shrink-0 transition"
-                title={isCollapsed ? 'Розгорнути групу' : 'Згорнути групу'}
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              {/* Group Folder Icon */}
-              {isCollapsed ? (
-                <Folder className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              ) : (
-                <FolderOpen className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-              )}
-
-              {/* Group Name */}
-              {isEditing ? (
-                <div className="relative flex flex-col">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={editingGroupName}
-                    onChange={(e) => {
-                      setEditingGroupName(e.target.value);
-                      if (renameError) setRenameError('');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleFinishRename(node.id, true);
-                      if (e.key === 'Escape') handleFinishRename(node.id, false);
-                    }}
-                    onBlur={() => handleFinishRename(node.id, true)}
-                    onClick={(e) => e.stopPropagation()}
-                    className={`bg-[#0b1016] border ${renameError ? 'border-red-500' : 'border-[#66c0f4]'} text-xs text-white px-1 py-0.5 rounded focus:outline-none`}
-                  />
-                  {renameError && (
-                    <span className="text-[10px] text-red-400 mt-0.5 leading-none">
-                      {renameError}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="truncate text-xs font-semibold" title={`${node.name} (двічі клікніть для перейменування)`}>
-                  {node.name}
-                </span>
-              )}
-            </div>
-
-            {/* Right actions: Total tags count, swapped with delete button on hover */}
-            <div className="relative flex items-center justify-end w-6 h-5 shrink-0">
-              <span className="text-[10px] font-mono text-gray-500 group-hover/header:opacity-0 transition-opacity">
-                {totalTagsInGroup}
-              </span>
-              <button
-                type="button"
-                onClick={(e) => handleDeleteGroup(e, node.id)}
-                className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/header:opacity-100 rounded hover:bg-[#341d24] text-gray-400 hover:text-[#ff6b6b] transition cursor-pointer"
-                title="Видалити групу (розпакувати вкладені елементи)"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Group Children */}
-          {!isCollapsed && node.children && node.children.length > 0 && (
-            <div className="flex flex-col space-y-0.5 border-l border-[#202e3e]/60 ml-2.5">
-              {node.children.map(child => renderTreeNode(child, depth + 1))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // TAG NODE
     const isSteam = node.tagType === 'steam';
     const isChecked = isSteam ? selectedTags.has(node.tag) : selectedUserTags.has(node.tag);
     const count = isSteam ? (steamCountsMap.get(node.tag) || 0) : (userCountsMap.get(node.tag) || 0);
 
-    // Style specs per instructions:
+    // Style specs:
     // Inactive: plain colored text (orange for user #f49e42, blue for steam #66c0f4), no dots
     // Active: compact pill cloud with solid border matching tag color, contrast background & text
     let tagPillStyle = '';
@@ -886,47 +672,103 @@ export function TagsSidebar({
     }
 
     return (
-      <div
-        key={node.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, node)}
-        onDragEnd={handleDragEnd}
-        onDragOver={(e) => handleDragOver(e, node)}
-        onDragLeave={(e) => handleDragLeave(e, node)}
-        onDrop={(e) => handleDrop(e, node)}
-        onClick={(e) => handleNodeClick(e, node)}
-        style={{ paddingLeft: `${depth * 12 + 6}px` }}
-        className={`group/tag flex items-center justify-between py-1 px-1.5 rounded cursor-pointer transition select-none hover:bg-[#121c27] ${dropClass}`}
-        title={node.tag}
-      >
-        <div className="flex items-center gap-1.5 truncate mr-2">
-          <span className={`text-xs truncate transition ${tagPillStyle}`}>
-            {node.tag}
-          </span>
+      <div key={node.id} className="flex flex-col select-none">
+        <div
+          draggable
+          onDragStart={(e) => handleDragStart(e, node)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleDragOver(e, node)}
+          onDragLeave={(e) => handleDragLeave(e, node)}
+          onDrop={(e) => handleDrop(e, node)}
+          onClick={(e) => handleNodeClick(e, node)}
+          style={{ paddingLeft: `${depth * 14 + 4}px` }}
+          className={`group/tag flex items-center justify-between py-1 px-1.5 rounded cursor-pointer transition select-none hover:bg-[#121c27] ${dropClass}`}
+          title={node.tag}
+        >
+          <div className="flex items-center gap-1 min-w-0 truncate mr-2">
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={(e) => handleToggleTagCollapse(e, node.id)}
+                className="p-0.5 -ml-0.5 rounded hover:bg-[#253547] text-gray-400 hover:text-white shrink-0 transition"
+                title={isCollapsed ? 'Розгорнути підтеги' : 'Згорнути підтеги'}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+            ) : depth > 0 ? (
+              <span className="w-3.5 h-3.5 shrink-0 flex items-center justify-center text-gray-600 text-[10px]">└</span>
+            ) : null}
+
+            <span className={`text-xs truncate transition ${tagPillStyle}`}>
+              {node.tag}
+            </span>
+          </div>
+
+          {/* Right side: Fixed width container for counter / action icons */}
+          <div className="relative flex items-center justify-end min-w-[36px] h-5 shrink-0">
+            <span className={`text-[11px] font-mono px-1 py-0.2 rounded transition-opacity group-hover/tag:opacity-0 ${
+              isChecked
+                ? (isSteam ? 'text-[#66c0f4] font-bold' : 'text-[#f49e42] font-bold')
+                : 'text-gray-500'
+            }`}>
+              {count}
+            </span>
+
+            <div className="absolute inset-0 flex items-center justify-end gap-1 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+              {/* If nested tag (depth > 0), show Unnest button */}
+              {depth > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => handleUnnestTag(e, node.id)}
+                  className="p-0.5 rounded hover:bg-[#203246] text-gray-400 hover:text-[#66c0f4] transition cursor-pointer"
+                  title="Винести тег на верхній рівень"
+                >
+                  <CornerUpLeft className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* If tag has children, button to select tag + all children */}
+              {hasChildren && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const { steam, user } = collectTagsFromNode(node);
+                    const visibleSteam = steam.filter(t => activeSteamTagNames.has(t));
+                    if (onBatchSetTags) onBatchSetTags(visibleSteam, user, 'add');
+                  }}
+                  className="p-0.5 rounded hover:bg-[#203246] text-gray-400 hover:text-[#a4d053] transition cursor-pointer"
+                  title="Вибрати тег та всі дочірні теги"
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Delete user tag */}
+              {!isSteam && (
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteUserTagNode(e, node)}
+                  className="p-0.5 rounded hover:bg-[#341d24] text-gray-400 hover:text-[#ff6b6b] transition cursor-pointer"
+                  title="Видалити користувацький тег"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Right side: Fixed width container for counter / delete icon */}
-        <div className="relative flex items-center justify-end min-w-[24px] h-5 shrink-0">
-          <span className={`text-[11px] font-mono px-1 py-0.2 rounded transition-opacity ${
-            !isSteam ? 'group-hover/tag:opacity-0' : ''
-          } ${
-            isChecked
-              ? (isSteam ? 'text-[#66c0f4] font-bold' : 'text-[#f49e42] font-bold')
-              : 'text-gray-500'
-          }`}>
-            {count}
-          </span>
-          {!isSteam && (
-            <button
-              type="button"
-              onClick={(e) => handleDeleteUserTagNode(e, node)}
-              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/tag:opacity-100 rounded hover:bg-[#341d24] text-gray-400 hover:text-[#ff6b6b] transition cursor-pointer"
-              title="Видалити користувацький тег"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        {/* Render nested children if expanded */}
+        {hasChildren && !isCollapsed && (
+          <div className="flex flex-col space-y-0.5 border-l border-[#202e3e]/60 ml-2.5">
+            {node.children.map(child => renderTreeNode(child, depth + 1))}
+          </div>
+        )}
       </div>
     );
   };
@@ -1148,18 +990,18 @@ export function TagsSidebar({
             <button
               type="button"
               onClick={handleExpandAll}
-              title="Розгорнути всі папки"
+              title="Розгорнути всі вкладені теги"
               className="p-1 rounded bg-[#101822] border border-[#233547] text-gray-400 hover:text-[#66c0f4] hover:border-[#334d66] transition cursor-pointer"
             >
-              <FolderOpen className="w-3.5 h-3.5" />
+              <ChevronsUpDown className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={handleCollapseAll}
-              title="Згорнути всі папки"
+              title="Згорнути всі вкладені теги"
               className="p-1 rounded bg-[#101822] border border-[#233547] text-gray-400 hover:text-[#66c0f4] hover:border-[#334d66] transition cursor-pointer"
             >
-              <Folder className="w-3.5 h-3.5" />
+              <ChevronsDownUp className="w-3.5 h-3.5" />
             </button>
           </div>
 

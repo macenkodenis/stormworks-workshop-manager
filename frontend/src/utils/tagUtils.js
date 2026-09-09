@@ -3,14 +3,38 @@
  */
 
 /**
+ * Automatically unrolls legacy { type: 'group' } folder nodes into plain tags.
+ */
+export function migrateLegacyTree(nodes) {
+  if (!Array.isArray(nodes)) return [];
+  const result = [];
+  for (const node of nodes) {
+    if (!node) continue;
+    if (node.type === 'group') {
+      // Unpack group children recursively
+      const unpacked = migrateLegacyTree(node.children || []);
+      result.push(...unpacked);
+    } else {
+      const children = Array.isArray(node.children) ? migrateLegacyTree(node.children) : [];
+      result.push({
+        ...node,
+        type: 'tag',
+        children
+      });
+    }
+  }
+  return result;
+}
+
+/**
  * Builds a forward and reverse map of tag paths from the tag structure tree.
  * 
- * If a tag is nested inside folders:
- * - One folder: "ParentFolder/TagName"
- * - Two folders: "ParentFolder/SubFolder/TagName"
- * - N folders: "Folder1/Folder2/.../TagName"
+ * If a tag is nested inside parent tags:
+ * - One level: "ParentTag/ChildTag"
+ * - Two levels: "GrandParent/ParentTag/ChildTag"
+ * - N levels: "Tag1/Tag2/.../TagName"
  * 
- * Tags that are at the root level (not inside any folder) are NOT mapped,
+ * Tags that are at the root level (not inside any other tag) are NOT mapped,
  * so they retain their original name.
  */
 export function buildTagPathMap(tree) {
@@ -21,31 +45,40 @@ export function buildTagPathMap(tree) {
     return { tagPathMap, reverseTagPathMap };
   }
 
-  const traverse = (nodes, currentFolderNames = []) => {
+  const traverse = (nodes, currentParentTagNames = []) => {
     if (!Array.isArray(nodes)) return;
 
     for (const node of nodes) {
       if (!node) continue;
 
+      // Legacy fallback if group exists
       if (node.type === 'group' && node.name) {
         const groupName = String(node.name).trim();
         if (groupName) {
-          traverse(node.children || [], [...currentFolderNames, groupName]);
+          traverse(node.children || [], [...currentParentTagNames, groupName]);
         }
-      } else if (node.type === 'tag' && node.tag) {
-        const tagName = String(node.tag).trim();
-        if (tagName && currentFolderNames.length > 0) {
-          // Tag is nested in one or more folders
-          const fullPath = [...currentFolderNames, tagName].join('/');
-          const typeKey = `${node.tagType || 'steam'}:${tagName}`;
+        continue;
+      }
 
-          tagPathMap.set(typeKey, fullPath);
-          if (!tagPathMap.has(tagName)) {
-            tagPathMap.set(tagName, fullPath);
-          }
+      const tagName = String(node.tag || '').trim();
+      if (!tagName) continue;
 
-          reverseTagPathMap.set(fullPath.toLowerCase(), tagName);
+      if (currentParentTagNames.length > 0) {
+        // Tag is nested under one or more parent tags
+        const fullPath = [...currentParentTagNames, tagName].join('/');
+        const typeKey = `${node.tagType || 'steam'}:${tagName}`;
+
+        tagPathMap.set(typeKey, fullPath);
+        if (!tagPathMap.has(tagName)) {
+          tagPathMap.set(tagName, fullPath);
         }
+
+        reverseTagPathMap.set(fullPath.toLowerCase(), tagName);
+      }
+
+      // If this tag has children, traverse them with this tag added to path
+      if (Array.isArray(node.children) && node.children.length > 0) {
+        traverse(node.children, [...currentParentTagNames, tagName]);
       }
     }
   };
