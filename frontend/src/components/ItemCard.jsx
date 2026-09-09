@@ -109,11 +109,16 @@ export const ItemCard = React.memo(function ItemCard({
 
   // Tags overflow popover state
   const [showTagsPopover, setShowTagsPopover] = useState(false);
+  const [popoverDirection, setPopoverDirection] = useState('up');
   const popoverTimeoutRef = useRef(null);
 
   const handleTagsMouseEnter = () => {
     if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
     if (displayTags.length > visibleTagCount) {
+      if (tagsContainerRef.current) {
+        const rect = tagsContainerRef.current.getBoundingClientRect();
+        setPopoverDirection(rect.top < 240 ? 'down' : 'up');
+      }
       setShowTagsPopover(true);
     }
   };
@@ -196,7 +201,7 @@ export const ItemCard = React.memo(function ItemCard({
       }}
       data-view-item="card"
       className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-col justify-between select-none ${
-        showTagsPopover ? 'z-40' : ''
+        showTagsPopover ? 'z-20' : ''
       } ${
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
@@ -475,7 +480,9 @@ export const ItemCard = React.memo(function ItemCard({
               {/* Overflow Popover showing full list of tags */}
               {showTagsPopover && displayTags.length > visibleTagCount && (
                 <div
-                  className="absolute bottom-full left-0 mb-1.5 z-50 w-full min-w-[220px] max-w-[340px] max-h-52 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-2.5 flex flex-wrap gap-1.5"
+                  className={`absolute ${
+                    popoverDirection === 'down' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                  } left-0 z-50 w-full min-w-[220px] max-w-[340px] max-h-52 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-2.5 flex flex-wrap gap-1.5`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

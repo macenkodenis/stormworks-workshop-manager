@@ -82,7 +82,7 @@ export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelecti
         opacity: isHidden ? 0 : 0.92,
         transform: isHidden ? 'translateY(8px) scale(0.96)' : 'translateY(0) scale(1)',
       }}
-      className="fixed z-20 pointer-events-none transition-all duration-200 ease-out select-none
+      className="fixed z-30 pointer-events-none transition-all duration-200 ease-out select-none
         bg-[#101721]/95 backdrop-blur-md border border-[#233547]/90 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.65)]
         w-64 text-left"
     >

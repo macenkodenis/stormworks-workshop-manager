@@ -46,7 +46,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-30 sticky top-0 w-full">
+    <header className="bg-[#171d25] border-b border-[#22303e] shadow-md z-40 sticky top-0 w-full">
       <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-2 flex flex-nowrap items-center justify-between gap-2.5 overflow-hidden">
         
         {/* 1. Brand / Game Name Badge */}
