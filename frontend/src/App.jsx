@@ -1527,6 +1527,8 @@ export function App() {
                       onRemovePendingAction={handleRemoveFromPlan}
                       tagPathMap={tagPathMap}
                       cardSize={cardSize}
+                      onToggleTag={handleToggleTag}
+                      onToggleUserTag={handleToggleUserTag}
                     />
                   );
                 }
@@ -1546,6 +1548,8 @@ export function App() {
                     onRemovePendingAction={handleRemoveFromPlan}
                     tagPathMap={tagPathMap}
                     cardSize={cardSize}
+                    onToggleTag={handleToggleTag}
+                    onToggleUserTag={handleToggleUserTag}
                   />
                 );
               })}

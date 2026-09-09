@@ -722,5 +722,19 @@ def bulk_set_sorted(payload: BulkSortedPayload):
     conn.close()
     return {"status": "ok", "affected": len(payload.item_ids), "is_sorted": payload.is_sorted}
 
+@app.get("/")
+def get_index():
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    raise HTTPException(status_code=404, detail="Index not found")
+
 if STATIC_DIR.exists():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

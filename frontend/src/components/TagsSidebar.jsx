@@ -54,12 +54,11 @@ export function TagsSidebar({
   const [dropTarget, setDropTarget] = useState(null); // { targetId, position: 'before' | 'inside' | 'after' }
   const isDraggingRef = useRef(false);
   const draggedNodeRef = useRef(null);
-  const lastDropOrDragEndTimeRef = useRef(0);
+  const lastActualDropTimeRef = useRef(0);
 
-  // Global cleanup to guarantee drag state is reset even if browser drops outside or unmounts during drag
+  // Global cleanup to guarantee drag state is reset
   useEffect(() => {
     const handleGlobalDragEnd = () => {
-      lastDropOrDragEndTimeRef.current = Date.now();
       isDraggingRef.current = false;
       draggedNodeRef.current = null;
       setDraggedNode(null);
@@ -329,8 +328,8 @@ export function TagsSidebar({
 
   // Node Selection Handler (Tag)
   const handleNodeClick = (e, node) => {
-    // Prevent synthetic click immediately after dropping or dragging
-    if (Date.now() - lastDropOrDragEndTimeRef.current < 200) {
+    // Only ignore synthetic click immediately after an actual drop operation
+    if (Date.now() - lastActualDropTimeRef.current < 250) {
       return;
     }
     isDraggingRef.current = false;
@@ -488,7 +487,6 @@ export function TagsSidebar({
 
     const currentDragged = draggedNodeRef.current || draggedNode;
     if (!currentDragged || currentDragged.id === targetNode.id) {
-      lastDropOrDragEndTimeRef.current = Date.now();
       isDraggingRef.current = false;
       draggedNodeRef.current = null;
       setDraggedNode(null);
@@ -588,7 +586,7 @@ export function TagsSidebar({
 
     setTree(updatedTree);
     saveTreeToBackend(updatedTree);
-    lastDropOrDragEndTimeRef.current = Date.now();
+    lastActualDropTimeRef.current = Date.now();
     isDraggingRef.current = false;
     draggedNodeRef.current = null;
     setDraggedNode(null);

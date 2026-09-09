@@ -57,7 +57,9 @@ export const ItemCard = React.memo(function ItemCard({
   pendingAction = null,
   onRemovePendingAction,
   tagPathMap,
-  cardSize = 2
+  cardSize = 2,
+  onToggleTag,
+  onToggleUserTag
 }) {
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -409,8 +411,14 @@ export const ItemCard = React.memo(function ItemCard({
                 return (
                   <span
                     key={`${type}-${tag}-${idx}`}
-                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate shrink-0 ${maxTagWidth} ${pillStyle}`}
-                    title={displayLabel}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (isUser && onToggleUserTag) onToggleUserTag(tag);
+                      else if (!isUser && onToggleTag) onToggleTag(tag);
+                    }}
+                    className={`text-xs whitespace-nowrap leading-tight transition select-none truncate shrink-0 cursor-pointer hover:opacity-90 ${maxTagWidth} ${pillStyle}`}
+                    title={`Фільтрувати за тегом: ${displayLabel}`}
                   >
                     {displayLabel}
                   </span>
