@@ -211,12 +211,12 @@ export const ItemRow = React.memo(function ItemRow({
       }}
       data-view-item="row"
       className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-row items-stretch select-none ${
-        showTagsPopover ? 'z-20' : ''
+        showTagsPopover ? 'z-30' : ''
       } ${
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
       style={{
-        contentVisibility: 'auto',
+        contentVisibility: showTagsPopover ? 'visible' : 'auto',
         containIntrinsicSize: cardSize === 1 ? '340px 72px' : cardSize === 2 ? '480px 96px' : '1000px 124px',
         filter: isUnsubscribed ? 'grayscale(100%)' : undefined,
         boxShadow: isAnchor
@@ -552,7 +552,7 @@ export const ItemRow = React.memo(function ItemRow({
             {/* Overflow Popover showing full list of tags */}
             {showTagsPopover && displayTags.length > visibleTagCount && (
               <div
-                className="absolute -bottom-1.5 -left-1.5 -right-1.5 z-50 min-w-[calc(100%+12px)] max-h-60 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-1.5 flex flex-col justify-end"
+                className="absolute -top-1.5 -left-1.5 -right-1.5 z-50 min-w-[calc(100%+12px)] max-h-72 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-1.5 flex flex-col"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -560,11 +560,7 @@ export const ItemRow = React.memo(function ItemRow({
                 onMouseEnter={handleTagsMouseEnter}
                 onMouseLeave={handleTagsMouseLeave}
               >
-                <div className="w-full flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#233547]/80 text-[11px] text-[#8f98a0]">
-                  <span className="font-semibold text-gray-300">Всі теги ({displayTags.length})</span>
-                  <span className="text-[10px] text-[#657484]">Ctrl+клік для кількох</span>
-                </div>
-                <div className="flex flex-wrap-reverse gap-1 items-center">
+                <div className="flex flex-wrap gap-1 items-center">
                   {displayTags.map(({ tag, type }, idx) => {
                     const isUser = type === 'user';
                     const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
@@ -596,6 +592,10 @@ export const ItemRow = React.memo(function ItemRow({
                       </span>
                     );
                   })}
+                </div>
+                <div className="w-full flex items-center justify-between pt-1.5 mt-1.5 border-t border-[#233547]/80 text-[10.5px] text-[#8f98a0]">
+                  <span className="font-semibold text-gray-300">Всі теги ({displayTags.length})</span>
+                  <span className="text-[10px] text-[#657484]">Ctrl+клік для кількох</span>
                 </div>
               </div>
             )}
