@@ -9,6 +9,7 @@ export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelecti
   // Update horizontal position based on the right boundary of the main grid area
   useEffect(() => {
     const updatePosition = () => {
+      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) return;
       if (mainRef && mainRef.current) {
         const rect = mainRef.current.getBoundingClientRect();
         // Position at right edge of the main tiles zone with a comfortable margin
@@ -40,6 +41,7 @@ export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelecti
     const PROXIMITY_THRESHOLD = 85; // Distance in pixels to trigger fade-out
 
     const handleMouseMove = (e) => {
+      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) return;
       if (!overlayRef.current) return;
       const rect = overlayRef.current.getBoundingClientRect();
       const mouseX = e.clientX;

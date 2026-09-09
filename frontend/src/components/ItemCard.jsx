@@ -1,8 +1,8 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useMemo } from 'react';
 import { ExternalLink, HardDrive, Calendar, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
-import { getTagDisplayPath, estimateTagWidth } from '../utils/tagUtils';
+import { getTagDisplayPath, estimateTagWidth, observeElementResize } from '../utils/tagUtils';
 
-export function ItemCard({
+export const ItemCard = React.memo(function ItemCard({
   item,
   index,
   isSelected,
@@ -37,16 +37,19 @@ export function ItemCard({
   const previewSrc = `/api/previews/${item.published_file_id}`;
 
   // Unified tags for ItemCard: active Steam tags + User tags
-  const deactivatedSet = new Set(item.deactivated_steam_tags || []);
-  const activeSteamTags = (item.tags || []).filter(t => !deactivatedSet.has(t)).map(t => ({
-    tag: t,
-    type: 'steam'
-  }));
-  const userTagsList = (item.user_tags || []).map(t => ({
-    tag: t,
-    type: 'user'
-  }));
-  const displayTags = [...userTagsList, ...activeSteamTags];
+  const deactivatedSet = useMemo(() => new Set(item.deactivated_steam_tags || []), [item.deactivated_steam_tags]);
+  const displayTags = useMemo(() => {
+    const activeSteamTags = (item.tags || []).filter(t => !deactivatedSet.has(t)).map(t => ({
+      tag: t,
+      type: 'steam'
+    }));
+    const userTagsList = (item.user_tags || []).map(t => ({
+      tag: t,
+      type: 'user'
+    }));
+    return [...userTagsList, ...activeSteamTags];
+  }, [item.tags, item.user_tags, deactivatedSet]);
+
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
 
@@ -59,6 +62,7 @@ export function ItemCard({
     if (!container || displayTags.length === 0) return;
 
     const computeFit = () => {
+      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) return;
       const containerWidth = container.offsetWidth;
       if (containerWidth <= 0) return;
 
@@ -91,9 +95,7 @@ export function ItemCard({
 
     computeFit();
 
-    const observer = new ResizeObserver(computeFit);
-    observer.observe(container);
-    return () => observer.disconnect();
+    return observeElementResize(container, computeFit);
   }, [displayTags, item.published_file_id, selectedSteamTags, selectedUserTags, tagPathMap]);
 
   // Determine card background based on active selection states
@@ -115,6 +117,8 @@ export function ItemCard({
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
       style={{
+        contentVisibility: 'auto',
+        containIntrinsicSize: '320px 240px',
         filter: isUnsubscribed ? 'grayscale(100%)' : undefined,
         boxShadow: isAnchor
           ? '0 0 16px 3px rgba(102, 192, 244, 0.45), 0 0 4px 1px rgba(102, 192, 244, 0.6)'
@@ -342,4 +346,4 @@ export function ItemCard({
       </div>
     </div>
   );
-}
+});

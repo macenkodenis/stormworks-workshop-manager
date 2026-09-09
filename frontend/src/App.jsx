@@ -71,6 +71,10 @@ export function App() {
   const isResizingRightRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const leftSidebarContainerRef = useRef(null);
+  const rightSidebarContainerRef = useRef(null);
+  const currentLeftWidthRef = useRef(leftWidth);
+  const currentRightWidthRef = useRef(rightWidth);
   const mainRef = useRef(null);
 
   const handleLeftResizeStart = (e) => {
@@ -78,6 +82,8 @@ export function App() {
     isResizingLeftRef.current = true;
     startXRef.current = e.clientX;
     startWidthRef.current = leftWidth;
+    currentLeftWidthRef.current = leftWidth;
+    document.body.classList.add('is-resizing');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
@@ -87,35 +93,56 @@ export function App() {
     isResizingRightRef.current = true;
     startXRef.current = e.clientX;
     startWidthRef.current = rightWidth;
+    currentRightWidthRef.current = rightWidth;
+    document.body.classList.add('is-resizing');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
+      if (!isResizingLeftRef.current && !isResizingRightRef.current) return;
+
       if (isResizingLeftRef.current) {
         const delta = e.clientX - startXRef.current;
         const newWidth = Math.min(Math.max(startWidthRef.current + delta, 200), 500);
-        setLeftWidth(newWidth);
-        localStorage.setItem('sw_left_width', String(newWidth));
+        currentLeftWidthRef.current = newWidth;
+        if (leftSidebarContainerRef.current) {
+          leftSidebarContainerRef.current.style.width = `${newWidth}px`;
+        }
       } else if (isResizingRightRef.current) {
         const delta = startXRef.current - e.clientX;
         const newWidth = Math.min(Math.max(startWidthRef.current + delta, 220), 500);
-        setRightWidth(newWidth);
-        localStorage.setItem('sw_right_width', String(newWidth));
+        currentRightWidthRef.current = newWidth;
+        if (rightSidebarContainerRef.current) {
+          rightSidebarContainerRef.current.style.width = `${newWidth}px`;
+        }
       }
     };
 
     const handleMouseUp = () => {
-      if (isResizingLeftRef.current || isResizingRightRef.current) {
+      if (isResizingLeftRef.current) {
         isResizingLeftRef.current = false;
-        isResizingRightRef.current = false;
+        document.body.classList.remove('is-resizing');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        const finalWidth = currentLeftWidthRef.current;
+        setLeftWidth(finalWidth);
+        localStorage.setItem('sw_left_width', String(finalWidth));
+        window.dispatchEvent(new Event('resize'));
+      } else if (isResizingRightRef.current) {
+        isResizingRightRef.current = false;
+        document.body.classList.remove('is-resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        const finalWidth = currentRightWidthRef.current;
+        setRightWidth(finalWidth);
+        localStorage.setItem('sw_right_width', String(finalWidth));
+        window.dispatchEvent(new Event('resize'));
       }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('mouseup', handleMouseUp);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
@@ -534,21 +561,20 @@ export function App() {
   };
 
   // Toggle favorite on backend and local state
-  const handleToggleFavorite = async (itemId) => {
-    const currentItem = items.find(it => it.published_file_id === itemId);
-    const nextVal = currentItem ? !currentItem.is_favorited : true;
+  const handleToggleFavorite = useCallback(async (itemId) => {
+    let nextVal = true;
+    setItems(prev => {
+      const currentItem = prev.find(it => it.published_file_id === itemId);
+      nextVal = currentItem ? !currentItem.is_favorited : true;
+      return prev.map(it => {
+        if (it.published_file_id === itemId) {
+          return { ...it, is_favorited: nextVal };
+        }
+        return it;
+      });
+    });
 
-    // Optimistic update
-    setItems(prev => prev.map(it => {
-      if (it.published_file_id === itemId) {
-        return { ...it, is_favorited: nextVal };
-      }
-      return it;
-    }));
-
-    if (detailItem && detailItem.published_file_id === itemId) {
-      setDetailItem(prev => (prev ? { ...prev, is_favorited: nextVal } : prev));
-    }
+    setDetailItem(prev => (prev && prev.published_file_id === itemId ? { ...prev, is_favorited: nextVal } : prev));
 
     try {
       await fetch(`/api/items/${itemId}/favorited`, {
@@ -559,7 +585,7 @@ export function App() {
     } catch (err) {
       console.error('Failed to update favorite status:', err);
     }
-  };
+  }, []);
 
   // Update item Steam tags and deactivated tags on backend and local state
   const handleUpdateItemSteamTags = async (itemId, newSteamTags, newDeactivatedTags) => {
@@ -967,13 +993,13 @@ export function App() {
     });
   };
 
-  const handleRemoveFromPlan = (itemId) => {
+  const handleRemoveFromPlan = useCallback((itemId) => {
     setPendingActions(prev => {
       const next = { ...prev };
       delete next[itemId];
       return next;
     });
-  };
+  }, []);
 
   const handleClearPlan = () => {
     setPendingActions({});
@@ -1201,7 +1227,7 @@ export function App() {
   }, [searchFilteredItems, systemFilter, selectedTags, selectedUserTags, tagMode]);
 
   // Selection handlers
-  const handleItemClick = (e, item, index) => {
+  const handleItemClick = useCallback((e, item, index) => {
     const id = item.published_file_id;
 
     if (e.shiftKey && anchorIndex !== null) {
@@ -1229,17 +1255,19 @@ export function App() {
       });
       setAnchorIndex(index);
     } else {
-      if (selectedIds.has(id) && selectedIds.size === 1) {
-        setSelectedIds(new Set());
-        setAnchorId(null);
-        setAnchorIndex(null);
-      } else {
-        setSelectedIds(new Set([id]));
-        setAnchorId(id);
-        setAnchorIndex(index);
-      }
+      setSelectedIds(prev => {
+        if (prev.has(id) && prev.size === 1) {
+          setAnchorId(null);
+          setAnchorIndex(null);
+          return new Set();
+        } else {
+          setAnchorId(id);
+          setAnchorIndex(index);
+          return new Set([id]);
+        }
+      });
     }
-  };
+  }, [anchorIndex, filteredItems, anchorId]);
 
   const handleSelectAllFiltered = () => {
     setSelectedIds(new Set(filteredItems.map(i => i.published_file_id)));
@@ -1311,6 +1339,10 @@ export function App() {
     return filteredItems.findIndex(it => it.published_file_id === detailItem.published_file_id);
   }, [detailItem, filteredItems]);
 
+  const handleOpenDetail = useCallback((it) => {
+    setDetailItem(it);
+  }, []);
+
   const handleNavigateDetail = (direction) => {
     if (currentDetailIndex === -1 || filteredItems.length <= 1) return;
     let nextIndex = currentDetailIndex + direction;
@@ -1351,7 +1383,7 @@ export function App() {
       <div className="w-full max-w-none px-3 sm:px-5 lg:px-6 py-3 flex-1 flex items-start">
         
         {/* Left Column: Tags Sidebar with dynamic width */}
-        <div style={{ width: `${leftWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
+        <div ref={leftSidebarContainerRef} style={{ width: `${leftWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
           <TagsSidebar
             steamTagsWithCounts={steamTagsWithCounts}
             selectedTags={selectedTags}
@@ -1412,7 +1444,7 @@ export function App() {
                       selectedSteamTags={selectedTags}
                       selectedUserTags={selectedUserTags}
                       onItemClick={handleItemClick}
-                      onOpenDetail={(it) => setDetailItem(it)}
+                      onOpenDetail={handleOpenDetail}
                       onToggleFavorite={handleToggleFavorite}
                       pendingAction={pendingActions[item.published_file_id] || null}
                       onRemovePendingAction={handleRemoveFromPlan}
@@ -1431,7 +1463,7 @@ export function App() {
                     selectedSteamTags={selectedTags}
                     selectedUserTags={selectedUserTags}
                     onItemClick={handleItemClick}
-                    onOpenDetail={(it) => setDetailItem(it)}
+                    onOpenDetail={handleOpenDetail}
                     onToggleFavorite={handleToggleFavorite}
                     pendingAction={pendingActions[item.published_file_id] || null}
                     onRemovePendingAction={handleRemoveFromPlan}
@@ -1464,7 +1496,7 @@ export function App() {
         </div>
 
         {/* Right Column: Permanent Action & Selection Sidebar */}
-        <div style={{ width: `${rightWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
+        <div ref={rightSidebarContainerRef} style={{ width: `${rightWidth}px`, ...stickySidebarStyle }} className="shrink-0 sticky transition-[top,height] duration-75">
           <RightActionSidebar
             selectedCount={selectedIds.size}
             totalSelectedBytes={totalSelectedBytes}

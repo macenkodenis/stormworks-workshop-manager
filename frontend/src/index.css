@@ -34,3 +34,13 @@ body {
   top: 0.5rem;
   height: calc(100vh - 1rem);
 }
+
+/* Optimization during sidebar resizing: disable pointer events on cards to maintain 144 FPS */
+body.is-resizing * {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+body.is-resizing main {
+  pointer-events: none !important;
+}
+

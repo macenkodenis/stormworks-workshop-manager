@@ -132,3 +132,42 @@ export function estimateTagWidth(text, isActive = false) {
   return width;
 }
 
+const observerCallbacks = new WeakMap();
+let sharedObserver = null;
+
+function getSharedObserver() {
+  if (!sharedObserver && typeof ResizeObserver !== 'undefined') {
+    sharedObserver = new ResizeObserver((entries) => {
+      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) {
+        return;
+      }
+      for (const entry of entries) {
+        const cb = observerCallbacks.get(entry.target);
+        if (cb) {
+          cb(entry);
+        }
+      }
+    });
+  }
+  return sharedObserver;
+}
+
+/**
+ * High-performance shared ResizeObserver for card containers.
+ * Replaces 1000+ individual ResizeObserver instances with a single batched observer,
+ * and automatically pauses during column resize dragging to prevent layout thrashing.
+ */
+export function observeElementResize(element, callback) {
+  if (!element || typeof ResizeObserver === 'undefined') return () => {};
+  const obs = getSharedObserver();
+  if (!obs) return () => {};
+
+  observerCallbacks.set(element, callback);
+  obs.observe(element);
+  return () => {
+    obs.unobserve(element);
+    observerCallbacks.delete(element);
+  };
+}
+
+

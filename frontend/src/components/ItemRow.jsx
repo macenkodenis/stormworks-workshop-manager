@@ -1,8 +1,22 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useMemo } from 'react';
 import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
-import { getTagDisplayPath, estimateTagWidth } from '../utils/tagUtils';
+import { getTagDisplayPath, estimateTagWidth, observeElementResize } from '../utils/tagUtils';
 
-export function ItemRow({
+// Helper to clean BBCode formatting
+const cleanDescription = (raw) => {
+  if (!raw) return '';
+  return raw
+    .replace(/\[\/?(b|i|u|h[1-6]|strike|spoiler|code|noparse|hr|list|\*|table|tr|th|td)\]/gi, '')
+    .replace(/\[url=[^\]]*\]/gi, '')
+    .replace(/\[\/url\]/gi, '')
+    .replace(/\[img\].*?\[\/img\]/gi, '')
+    .replace(/\r\n/g, ' ')
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const ItemRow = React.memo(function ItemRow({
   item,
   index,
   isSelected,
@@ -35,36 +49,25 @@ export function ItemRow({
     return `${dd}.${mm}.${yy}`;
   };
 
-  // Clean description from BBCode & formatting for clean 1-2 line snippet
-  const cleanDescription = (raw) => {
-    if (!raw) return '';
-    return raw
-      .replace(/\[\/?(b|i|u|h[1-6]|strike|spoiler|code|noparse|hr|list|\*|table|tr|th|td)\]/gi, '')
-      .replace(/\[url=[^\]]*\]/gi, '')
-      .replace(/\[\/url\]/gi, '')
-      .replace(/\[img\].*?\[\/img\]/gi, '')
-      .replace(/\r\n/g, ' ')
-      .replace(/\n+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
   const previewSrc = `/api/previews/${item.published_file_id}`;
 
   // Unified tags: active Steam tags + User tags
-  const deactivatedSet = new Set(item.deactivated_steam_tags || []);
-  const activeSteamTags = (item.tags || []).filter(t => !deactivatedSet.has(t)).map(t => ({
-    tag: t,
-    type: 'steam'
-  }));
-  const userTagsList = (item.user_tags || []).map(t => ({
-    tag: t,
-    type: 'user'
-  }));
-  const displayTags = [...userTagsList, ...activeSteamTags];
+  const deactivatedSet = useMemo(() => new Set(item.deactivated_steam_tags || []), [item.deactivated_steam_tags]);
+  const displayTags = useMemo(() => {
+    const activeSteamTags = (item.tags || []).filter(t => !deactivatedSet.has(t)).map(t => ({
+      tag: t,
+      type: 'steam'
+    }));
+    const userTagsList = (item.user_tags || []).map(t => ({
+      tag: t,
+      type: 'user'
+    }));
+    return [...userTagsList, ...activeSteamTags];
+  }, [item.tags, item.user_tags, deactivatedSet]);
+
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
-  const descriptionSnippet = cleanDescription(item.description);
+  const descriptionSnippet = useMemo(() => cleanDescription(item.description), [item.description]);
 
   // Dynamic tags fitting to fill entire row width without wrapping or overflowing
   const tagsContainerRef = useRef(null);
@@ -75,6 +78,7 @@ export function ItemRow({
     if (!container || displayTags.length === 0) return;
 
     const computeFit = () => {
+      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) return;
       const containerWidth = container.offsetWidth;
       if (containerWidth <= 0) return;
 
@@ -106,36 +110,11 @@ export function ItemRow({
 
     computeFit();
 
-    const observer = new ResizeObserver(computeFit);
-    observer.observe(container);
-    return () => observer.disconnect();
+    return observeElementResize(container, computeFit);
   }, [displayTags, item.published_file_id, cardSize, selectedSteamTags, selectedUserTags, tagPathMap]);
 
-  // Dynamic description line-clamp calculation based on available vertical space
-  const descContainerRef = useRef(null);
-  const descTextRef = useRef(null);
-  const [maxDescLines, setMaxDescLines] = useState(cardSize === 1 ? 1 : cardSize === 2 ? 2 : 4);
-
-  useLayoutEffect(() => {
-    const container = descContainerRef.current;
-    if (!container || !descriptionSnippet) return;
-
-    const computeLines = () => {
-      const h = container.clientHeight;
-      if (h <= 0) return;
-      const computedLh = descTextRef.current
-        ? parseFloat(window.getComputedStyle(descTextRef.current).lineHeight)
-        : 18;
-      const lh = computedLh && !isNaN(computedLh) && computedLh > 10 ? computedLh : 18;
-      const lines = Math.max(1, Math.floor((h + 2) / lh));
-      setMaxDescLines(cardSize === 1 ? 1 : lines);
-    };
-
-    computeLines();
-    const ro = new ResizeObserver(computeLines);
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, [cardSize, descriptionSnippet]);
+  // Description line clamping directly based on card density (pure CSS, zero layout thrashing)
+  const maxDescLines = cardSize === 1 ? 1 : cardSize === 2 ? 2 : 4;
 
   // Background style based on selection
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
@@ -165,6 +144,8 @@ export function ItemRow({
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
       style={{
+        contentVisibility: 'auto',
+        containIntrinsicSize: cardSize === 1 ? '340px 72px' : cardSize === 2 ? '480px 96px' : '1000px 124px',
         filter: isUnsubscribed ? 'grayscale(100%)' : undefined,
         boxShadow: isAnchor
           ? '0 0 16px 3px rgba(102, 192, 244, 0.45), 0 0 4px 1px rgba(102, 192, 244, 0.6)'
@@ -399,9 +380,8 @@ export function ItemRow({
 
         {/* Middle Section: Dynamic multi-line description snippet that fills available vertical space */}
         {descriptionSnippet ? (
-          <div ref={descContainerRef} className="flex-1 min-w-0 my-0.5 overflow-hidden flex items-center">
+          <div className="flex-1 min-w-0 my-0.5 overflow-hidden flex items-center">
             <p
-              ref={descTextRef}
               className="text-xs text-[#8f98a0] leading-snug max-w-full"
               style={{
                 display: '-webkit-box',
@@ -464,4 +444,4 @@ export function ItemRow({
       </div>
     </div>
   );
-}
+});
