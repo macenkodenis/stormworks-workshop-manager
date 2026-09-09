@@ -264,12 +264,6 @@ export const ItemRow = React.memo(function ItemRow({
           }}
           loading="lazy"
         />
-
-        {/* Disk Size Badge (bottom-right of thumbnail) */}
-        <div className="absolute bottom-1.5 right-1.5 bg-black/80 backdrop-blur-xs text-[#a4d053] font-mono text-[10px] px-1.5 py-0.5 rounded border border-black/40 flex items-center gap-1">
-          <HardDrive className="w-2.5 h-2.5" />
-          {formatBytes(item.local_size_bytes || item.api_file_size)}
-        </div>
       </div>
 
       {/* 2. Unified Content Section: title, meta, description, tags */}
@@ -304,8 +298,30 @@ export const ItemRow = React.memo(function ItemRow({
               )}
             </div>
 
-            {/* Right corner: Status & Sorting badge */}
+            {/* Right corner: Status & Sorting badge (plus Author & Size in S mode) */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* In S mode: show author & size with graceful responsive hiding (size drops before author) */}
+              {cardSize === 1 && (
+                <>
+                  {authorName && (
+                    <span
+                      className="hidden @min-[260px]:inline-flex items-center text-[10.5px] text-[#8f98a0] min-w-0 shrink truncate max-w-[120px] mr-0.5"
+                      title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                    >
+                      <span className="shrink-0 mr-1 text-[#657484]">автор:</span>
+                      <span className="text-gray-300 font-medium truncate">{authorName}</span>
+                    </span>
+                  )}
+                  <div
+                    className="hidden @min-[340px]:inline-flex items-center gap-1 font-mono text-[10px] text-[#a4d053] shrink-0 mr-1"
+                    title={`Розмір: ${formatBytes(item.local_size_bytes || item.api_file_size)}`}
+                  >
+                    <HardDrive className="w-2.5 h-2.5 text-[#a4d053] shrink-0" />
+                    <span>{formatBytes(item.local_size_bytes || item.api_file_size)}</span>
+                  </div>
+                </>
+              )}
+
               {/* Status Indicator (full analogue of ItemDetailModal: highest priority, always visible in right corner) */}
               <div
                 className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] sm:text-[10.5px] font-medium ${
@@ -329,7 +345,7 @@ export const ItemRow = React.memo(function ItemRow({
 
               {/* Organization Badge (shown if space allows, hidden in narrow edgecases) */}
               <span
-                className={`hidden @min-[280px]:inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
+                className={`hidden @min-[240px]:inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap shrink-0 ${
                   item.is_sorted
                     ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
                     : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
@@ -341,33 +357,42 @@ export const ItemRow = React.memo(function ItemRow({
             </div>
           </div>
 
-          {/* Row 2 (for M and L cards): Author, Dates — only if space permits */}
+          {/* Row 2 (for M and L cards): Author, Size, Dates — only if space permits */}
           {cardSize !== 1 && (
             <div className="shrink-0 min-w-0 flex items-center gap-2 sm:gap-2.5 flex-nowrap text-[10.5px] sm:text-[11px] text-[#8f98a0] leading-none overflow-hidden max-w-full">
-              {/* Author Name (for L & M): drops if width < 360px */}
+              {/* Author Name (for L & M): drops if width < 280px */}
               {authorName && (
                 <span
-                  className="hidden @min-[360px]:inline-flex items-center text-[10.5px] sm:text-[11px] text-[#8f98a0] min-w-0 shrink truncate max-w-[170px]"
+                  className="hidden @min-[280px]:inline-flex items-center text-[10.5px] sm:text-[11px] text-[#8f98a0] min-w-0 shrink truncate max-w-[170px]"
                   title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
                 >
-                  <span className="shrink-0 mr-1">автор:</span>
+                  <span className="shrink-0 mr-1 text-[#657484]">автор:</span>
                   <span className="text-gray-300 font-medium truncate">{authorName}</span>
                 </span>
               )}
 
-              {/* Updated timestamp (for M & L): drops if width < 460px */}
+              {/* Mod Size Badge (for M & L): drops if width < 360px (BEFORE author drops at 280px!) */}
               <div
-                className="hidden @min-[460px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
+                className="hidden @min-[360px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#a4d053] whitespace-nowrap shrink-0"
+                title={`Розмір: ${formatBytes(item.local_size_bytes || item.api_file_size)}`}
+              >
+                <HardDrive className="w-3 h-3 text-[#a4d053] shrink-0" />
+                <span>{formatBytes(item.local_size_bytes || item.api_file_size)}</span>
+              </div>
+
+              {/* Updated timestamp (for M & L): drops if width < 440px */}
+              <div
+                className="hidden @min-[440px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
                 title="Дата оновлення"
               >
                 <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
                 <span>{formatDate(item.time_updated || item.local_mtime)}</span>
               </div>
 
-              {/* Created timestamp (only in L mode): drops first if width < 580px */}
+              {/* Created timestamp (only in L mode): drops first if width < 540px */}
               {item.time_created && cardSize === 3 && (
                 <div
-                  className="hidden @min-[580px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
+                  className="hidden @min-[540px]:inline-flex items-center gap-1 font-mono text-[10px] sm:text-[10.5px] text-[#758494] whitespace-nowrap shrink-0"
                   title="Дата створення"
                 >
                   <Clock className="w-3 h-3 text-gray-500 shrink-0" />

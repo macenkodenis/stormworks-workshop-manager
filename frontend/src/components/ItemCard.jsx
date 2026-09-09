@@ -52,6 +52,7 @@ export const ItemCard = React.memo(function ItemCard({
 
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
+  const authorName = item.creator_name || item.creator;
 
   // Dynamic tags fitting to fill entire card width (single line)
   const tagsContainerRef = useRef(null);
@@ -220,6 +221,7 @@ export const ItemCard = React.memo(function ItemCard({
           )}
         </div>
 
+        {/* Preview image */}
         <img
           src={previewSrc}
           alt={item.title}
@@ -238,16 +240,10 @@ export const ItemCard = React.memo(function ItemCard({
           }}
           loading="lazy"
         />
-
-        {/* Local size badge */}
-        <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-xs text-[#a4d053] font-mono text-[11px] px-2 py-0.5 rounded border border-black/40 flex items-center gap-1">
-          <HardDrive className="w-3 h-3" />
-          {formatBytes(item.local_size_bytes || item.api_file_size)}
-        </div>
       </div>
 
       {/* Item Body */}
-      <div className="p-3 flex-1 flex flex-col justify-between">
+      <div className="@container p-3 flex-1 flex flex-col justify-between">
         <div>
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-sm font-semibold text-white line-clamp-2 leading-tight group-hover:text-[#66c0f4] transition" title={item.title}>
@@ -255,14 +251,24 @@ export const ItemCard = React.memo(function ItemCard({
             </h3>
           </div>
 
-          <div className="mt-1 flex items-center justify-between text-xs text-[#8f98a0]">
-            <span className="font-mono text-[11px]">ID: {item.published_file_id}</span>
+          <div className="mt-1 flex items-center justify-between gap-1.5 text-xs text-[#8f98a0] min-w-0">
+            {authorName ? (
+              <span
+                className="truncate text-[11px] text-[#8f98a0] min-w-0 flex items-center"
+                title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+              >
+                <span className="text-[#657484] mr-1 shrink-0">автор:</span>
+                <span className="text-gray-300 font-medium truncate">{authorName}</span>
+              </span>
+            ) : (
+              <span className="font-mono text-[11px] text-[#8f98a0]">ID: {item.published_file_id}</span>
+            )}
             <a
               href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${item.published_file_id}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="hover:text-[#66c0f4] flex items-center gap-1 text-[11px]"
+              className="hover:text-[#66c0f4] flex items-center gap-1 text-[11px] shrink-0"
               title="Відкрити в Steam Workshop"
             >
               Steam <ExternalLink className="w-3 h-3" />
@@ -313,11 +319,26 @@ export const ItemCard = React.memo(function ItemCard({
           )}
         </div>
 
-        {/* Footer info: updated date formatted as dd.mm.yy */}
-        <div className="mt-3 pt-2 border-t border-[#233547]/60 flex items-center justify-between text-[11px] text-[#758494]">
-          <div className="flex items-center gap-1 font-mono text-[10.5px]" title="Дата оновлення: dd.mm.yy">
-            <Calendar className="w-3 h-3 text-[#66c0f4]" />
-            <span>{formatDate(item.time_updated || item.local_mtime)}</span>
+        {/* Footer info: updated date, mod size, and status */}
+        <div className="mt-3 pt-2 border-t border-[#233547]/60 flex items-center justify-between gap-1 text-[11px] text-[#758494] min-w-0">
+          <div className="flex items-center gap-2 font-mono text-[10.5px] min-w-0">
+            {/* Local size badge: hidden if width < 130px (hiding priority before author) */}
+            <div
+              className="hidden @min-[130px]:flex items-center gap-1 text-[#a4d053] shrink-0"
+              title={`Розмір: ${formatBytes(item.local_size_bytes || item.api_file_size)}`}
+            >
+              <HardDrive className="w-3 h-3 text-[#a4d053] shrink-0" />
+              <span>{formatBytes(item.local_size_bytes || item.api_file_size)}</span>
+            </div>
+
+            {/* Date badge: drops first if container < 210px */}
+            <div
+              className="hidden @min-[210px]:flex items-center gap-1 text-[#758494] shrink-0"
+              title="Дата оновлення: dd.mm.yy"
+            >
+              <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
+              <span>{formatDate(item.time_updated || item.local_mtime)}</span>
+            </div>
           </div>
 
           {/* Status Indicator (analogue of ItemDetailModal) */}
