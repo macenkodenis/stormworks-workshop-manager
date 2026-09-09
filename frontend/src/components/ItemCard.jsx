@@ -516,10 +516,6 @@ export const ItemCard = React.memo(function ItemCard({
                       );
                     })}
                   </div>
-                  <div className="w-full flex items-center justify-between pt-1.5 mt-1.5 border-t border-[#233547]/80 text-[10.5px] text-[#8f98a0]">
-                    <span className="font-semibold text-gray-300">Всі теги ({displayTags.length})</span>
-                    <span className="text-[10px] text-[#657484]">Ctrl+клік для кількох</span>
-                  </div>
                 </div>
               )}
             </div>
