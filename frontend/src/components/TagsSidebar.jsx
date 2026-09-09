@@ -127,7 +127,16 @@ export function TagsSidebar({
     }).catch(err => console.warn('Failed to save tag structure:', err));
   };
 
-  // Synchronize tree with available tags
+  // Stable string keys for tag names so effect only runs when tag names are added or removed, NOT when item counts change
+  const generalSteamNamesKey = useMemo(() => {
+    return generalSteamTags.map(t => t.tag).join('\0');
+  }, [generalSteamTags]);
+
+  const userTagNamesKey = useMemo(() => {
+    return userTagsWithCounts.map(t => t.tag).join('\0');
+  }, [userTagsWithCounts]);
+
+  // Synchronize tree with available tags (runs ONLY on structure changes, not on filter count changes)
   useEffect(() => {
     if (!hasLoadedRef.current) return;
 
@@ -172,7 +181,7 @@ export function TagsSidebar({
         }
       });
 
-      if (toAdd.length === 0 && prevTree.length > 0) {
+      if (toAdd.length === 0) {
         return prevTree;
       }
 
@@ -180,7 +189,7 @@ export function TagsSidebar({
       saveTreeToBackend(updated);
       return updated;
     });
-  }, [generalSteamTags, userTagsWithCounts]);
+  }, [generalSteamNamesKey, userTagNamesKey]);
 
   // Visibility check: Steam tags with 0 items are hidden from sidebar, but user tags with 0 remain; plus tagFilterQuery
   const isNodeVisible = (node) => {

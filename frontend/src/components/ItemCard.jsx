@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
 import { getTagDisplayPath, estimateTagWidth, observeElementResize } from '../utils/tagUtils';
 
@@ -10,6 +10,39 @@ const cleanDescription = (text) => {
     .replace(/\s+/g, ' ')
     .trim();
 };
+
+function areItemCardPropsEqual(prev, next) {
+  if (prev.item !== next.item) return false;
+  if (prev.index !== next.index) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.isAnchor !== next.isAnchor) return false;
+  if (prev.pendingAction !== next.pendingAction) return false;
+  if (prev.cardSize !== next.cardSize) return false;
+  if (prev.tagPathMap !== next.tagPathMap) return false;
+
+  // Check if any tags on this specific item changed active highlight state
+  if (prev.selectedSteamTags !== next.selectedSteamTags) {
+    const steamTags = next.item.tags || [];
+    for (let i = 0; i < steamTags.length; i++) {
+      const t = steamTags[i];
+      if (prev.selectedSteamTags.has(t) !== next.selectedSteamTags.has(t)) {
+        return false;
+      }
+    }
+  }
+
+  if (prev.selectedUserTags !== next.selectedUserTags) {
+    const userTags = next.item.user_tags || [];
+    for (let i = 0; i < userTags.length; i++) {
+      const t = userTags[i];
+      if (prev.selectedUserTags.has(t) !== next.selectedUserTags.has(t)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 export const ItemCard = React.memo(function ItemCard({
   item,
@@ -67,9 +100,11 @@ export const ItemCard = React.memo(function ItemCard({
 
   // Dynamic tags fitting to fill entire card width (single line)
   const tagsContainerRef = useRef(null);
-  const [visibleTagCount, setVisibleTagCount] = useState(displayTags.length);
+  // Fast initial estimate so cards don't need a forced layout reflow or immediate secondary re-render on mount
+  const initialFit = Math.min(displayTags.length, cardSize === 1 ? 2 : cardSize === 2 ? 3 : 5);
+  const [visibleTagCount, setVisibleTagCount] = useState(initialFit);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const container = tagsContainerRef.current;
     if (!container || displayTags.length === 0) return;
 
@@ -85,10 +120,8 @@ export const ItemCard = React.memo(function ItemCard({
 
       for (let i = 0; i < displayTags.length; i++) {
         const { tag, type } = displayTags[i];
-        const isUser = type === 'user';
-        const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
         const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
-        const tagWidth = estimateTagWidth(displayLabel, isActive);
+        const tagWidth = estimateTagWidth(displayLabel, false);
         const needed = totalWidth + tagWidth + (fitCount > 0 ? gap : 0);
         
         // If there are more tags after this one, reserve space for +N
@@ -101,14 +134,19 @@ export const ItemCard = React.memo(function ItemCard({
         }
       }
 
-      // If even 1 tag cannot fit alongside +N, show 1 tag and allow it to truncate
-      setVisibleTagCount(Math.max(1, fitCount));
+      const nextFit = Math.max(1, fitCount);
+      setVisibleTagCount(prev => prev === nextFit ? prev : nextFit);
     };
 
-    computeFit();
+    // Defer measurement via rAF so initial mount does not cause layout thrashing
+    const rafId = requestAnimationFrame(computeFit);
+    const unobserve = observeElementResize(container, computeFit);
 
-    return observeElementResize(container, computeFit);
-  }, [displayTags, item.published_file_id, cardSize, selectedSteamTags, selectedUserTags, tagPathMap]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      unobserve();
+    };
+  }, [displayTags, item.published_file_id, cardSize, tagPathMap]);
 
   // Determine card background based on active selection states
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
@@ -449,4 +487,4 @@ export const ItemCard = React.memo(function ItemCard({
       </div>
     </div>
   );
-});
+}, areItemCardPropsEqual);

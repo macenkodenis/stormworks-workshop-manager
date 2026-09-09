@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useTransition } from 'react';
 import { Header } from './components/Header';
 import { TagsSidebar } from './components/TagsSidebar';
 import { RightActionSidebar } from './components/RightActionSidebar';
@@ -17,6 +17,9 @@ export function App() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
+
+  // Non-blocking filter transitions for instant UI responsiveness
+  const [isPendingFilter, startFilterTransition] = useTransition();
 
   // Search and Sorting
   const [searchQuery, setSearchQuery] = useState('');
@@ -355,11 +358,27 @@ export function App() {
     return buildTagPathMap(tagStructure);
   }, [tagStructure]);
 
+  // Precompute active Steam tags and sets on each item once per items update (avoiding millions of new Set calls)
+  const enrichedItems = useMemo(() => {
+    return items.map(it => {
+      const deactivated = new Set(it.deactivated_steam_tags || []);
+      const activeSteamTags = (it.tags || []).filter(t => !deactivated.has(t));
+      const activeSteamTagSet = new Set(activeSteamTags);
+      const userTagSet = new Set(it.user_tags || []);
+      return {
+        ...it,
+        _activeSteamTags: activeSteamTags,
+        _activeSteamTagSet: activeSteamTagSet,
+        _userTagSet: userTagSet
+      };
+    });
+  }, [items]);
+
   // Search filtered base pool
   const searchFilteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return items;
-    return items.filter(it => {
+    if (!q) return enrichedItems;
+    return enrichedItems.filter(it => {
       const titleMatch = it.title?.toLowerCase().includes(q);
       const idMatch = it.published_file_id.includes(q);
       const creatorMatch = it.creator?.includes(q);
@@ -374,7 +393,7 @@ export function App() {
       });
       return titleMatch || idMatch || creatorMatch || descMatch || tagsMatch || userTagsMatch;
     });
-  }, [items, searchQuery, tagPathMap]);
+  }, [enrichedItems, searchQuery, tagPathMap]);
 
   // Helper to test if a tag is a game version tag
   const isVersionTag = (tagName) => {
@@ -392,7 +411,8 @@ export function App() {
     let enabled = 0;
     let disabled = 0;
 
-    searchFilteredItems.forEach(it => {
+    for (let i = 0; i < searchFilteredItems.length; i++) {
+      const it = searchFilteredItems[i];
       if (it.is_unsubscribed) {
         unsubscribed++;
       } else {
@@ -405,7 +425,7 @@ export function App() {
         enabled++;
       }
 
-      const isItemSorted = it.is_sorted !== undefined ? it.is_sorted : (it.user_tags && it.user_tags.length > 0);
+      const isItemSorted = it.is_sorted !== undefined ? it.is_sorted : ((it.user_tags || []).length > 0);
       if (isItemSorted) {
         sorted++;
       } else {
@@ -415,7 +435,7 @@ export function App() {
       if (it.is_favorited) {
         favorited++;
       }
-    });
+    }
 
     return { subscribed, unsubscribed, sorted, unsorted, favorited, enabled, disabled };
   }, [searchFilteredItems]);
@@ -434,41 +454,65 @@ export function App() {
     return allUniqueSteamTags.filter(t => !isVersionTag(t));
   }, [allUniqueSteamTags]);
 
-  // Dynamic counts for STEAM tags (excluding deactivated tags for each item)
+  // Dynamic counts for STEAM tags (Optimized Single-Pass O(N) Tally Algorithm)
   const steamTagsWithCounts = useMemo(() => {
     const selectedArr = Array.from(selectedTags);
     const hasSelection = selectedArr.length > 0;
 
-    const getActiveSteamTags = (it) => {
-      const deactivated = new Set(it.deactivated_steam_tags || []);
-      return (it.tags || []).filter(t => !deactivated.has(t));
-    };
-
-    return allUniqueSteamTags.map(tag => {
-      let count = 0;
-      if (!hasSelection) {
-        count = searchFilteredItems.filter(it => getActiveSteamTags(it).includes(tag)).length;
-      } else if (tagMode === 'AND') {
-        if (selectedTags.has(tag)) {
-          count = searchFilteredItems.filter(it => {
-            const itemTags = getActiveSteamTags(it);
-            return selectedArr.every(t => itemTags.includes(t));
-          }).length;
-        } else {
-          const testGroup = [...selectedArr, tag];
-          count = searchFilteredItems.filter(it => {
-            const itemTags = getActiveSteamTags(it);
-            return testGroup.every(t => itemTags.includes(t));
-          }).length;
+    // Fast Path 1: No selection or OR mode -> Single pass tally across searchFilteredItems
+    if (!hasSelection || tagMode === 'OR') {
+      const tally = new Map();
+      for (let i = 0; i < searchFilteredItems.length; i++) {
+        const tags = searchFilteredItems[i]._activeSteamTags;
+        for (let j = 0; j < tags.length; j++) {
+          const t = tags[j];
+          tally.set(t, (tally.get(t) || 0) + 1);
         }
-      } else {
-        count = searchFilteredItems.filter(it => getActiveSteamTags(it).includes(tag)).length;
       }
-      return { tag, count };
-    });
+      return allUniqueSteamTags.map(tag => ({
+        tag,
+        count: tally.get(tag) || 0
+      }));
+    }
+
+    // Fast Path 2: AND mode with selection:
+    // a) Filter matching items once (items that satisfy all selected tags)
+    const matchingItems = [];
+    for (let i = 0; i < searchFilteredItems.length; i++) {
+      const it = searchFilteredItems[i];
+      const tagSet = it._activeSteamTagSet;
+      let matchesAll = true;
+      for (let j = 0; j < selectedArr.length; j++) {
+        if (!tagSet.has(selectedArr[j])) {
+          matchesAll = false;
+          break;
+        }
+      }
+      if (matchesAll) {
+        matchingItems.push(it);
+      }
+    }
+    const matchCount = matchingItems.length;
+
+    // b) Single pass tally across matching items for any additional tag
+    const tally = new Map();
+    for (let i = 0; i < matchingItems.length; i++) {
+      const tags = matchingItems[i]._activeSteamTags;
+      for (let j = 0; j < tags.length; j++) {
+        const t = tags[j];
+        if (!selectedTags.has(t)) {
+          tally.set(t, (tally.get(t) || 0) + 1);
+        }
+      }
+    }
+
+    return allUniqueSteamTags.map(tag => ({
+      tag,
+      count: selectedTags.has(tag) ? matchCount : (tally.get(tag) || 0)
+    }));
   }, [allUniqueSteamTags, searchFilteredItems, selectedTags, tagMode]);
 
-  // Extract all USER custom tags and their dynamic counts in stable order
+  // Extract all USER custom tags and their dynamic counts (Optimized Single-Pass)
   const userTagsWithCounts = useMemo(() => {
     const userTagCounts = new Map();
     // Include all explicitly created user tags
@@ -476,88 +520,101 @@ export function App() {
       userTagCounts.set(t, 0);
     });
 
-    items.forEach(it => {
+    enrichedItems.forEach(it => {
       (it.user_tags || []).forEach(t => {
         if (!userTagCounts.has(t)) userTagCounts.set(t, 0);
       });
     });
 
-    // Count appearances in current searchFilteredItems
-    userTagCounts.forEach((_, tag) => {
-      const count = searchFilteredItems.filter(it => (it.user_tags || []).includes(tag)).length;
-      userTagCounts.set(tag, count);
-    });
+    // Count appearances in current searchFilteredItems in a single pass
+    for (let i = 0; i < searchFilteredItems.length; i++) {
+      const it = searchFilteredItems[i];
+      const tags = it.user_tags;
+      if (tags && tags.length > 0) {
+        for (let j = 0; j < tags.length; j++) {
+          const t = tags[j];
+          userTagCounts.set(t, (userTagCounts.get(t) || 0) + 1);
+        }
+      }
+    }
 
     return Array.from(userTagCounts.entries())
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => a.tag.localeCompare(b.tag));
-  }, [items, searchFilteredItems, extraUserTags]);
+  }, [enrichedItems, searchFilteredItems, extraUserTags]);
 
   const allAvailableUserTags = useMemo(() => {
     return userTagsWithCounts.map(u => u.tag);
   }, [userTagsWithCounts]);
 
-  // Toggle Steam tag selection
+  // Toggle Steam tag selection (non-blocking transition)
   const handleToggleTag = (tag) => {
-    setSelectedTags(prev => {
-      const next = new Set(prev);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
+    startFilterTransition(() => {
+      setSelectedTags(prev => {
+        const next = new Set(prev);
+        if (next.has(tag)) {
+          next.delete(tag);
+        } else {
+          next.add(tag);
+        }
+        return next;
+      });
     });
   };
 
-  // Toggle User tag selection
+  // Toggle User tag selection (non-blocking transition)
   const handleToggleUserTag = (tag) => {
-    setSelectedUserTags(prev => {
-      const next = new Set(prev);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
+    startFilterTransition(() => {
+      setSelectedUserTags(prev => {
+        const next = new Set(prev);
+        if (next.has(tag)) {
+          next.delete(tag);
+        } else {
+          next.add(tag);
+        }
+        return next;
+      });
     });
   };
 
   // Batch set Steam and User tags (from group or range selections)
   const handleBatchSetTags = (steamTagsToSelect, userTagsToSelect, mode = 'set') => {
-    // mode: 'set' (replace selection with provided), 'toggle' (toggle these tags), 'add' (add these tags), 'remove' (remove these tags)
-    if (mode === 'set') {
-      setSelectedTags(new Set(steamTagsToSelect));
-      setSelectedUserTags(new Set(userTagsToSelect));
-    } else if (mode === 'add') {
-      setSelectedTags(prev => {
-        const next = new Set(prev);
-        steamTagsToSelect.forEach(t => next.add(t));
-        return next;
-      });
-      setSelectedUserTags(prev => {
-        const next = new Set(prev);
-        userTagsToSelect.forEach(t => next.add(t));
-        return next;
-      });
-    } else if (mode === 'remove') {
-      setSelectedTags(prev => {
-        const next = new Set(prev);
-        steamTagsToSelect.forEach(t => next.delete(t));
-        return next;
-      });
-      setSelectedUserTags(prev => {
-        const next = new Set(prev);
-        userTagsToSelect.forEach(t => next.delete(t));
-        return next;
-      });
-    }
+    startFilterTransition(() => {
+      if (mode === 'set') {
+        setSelectedTags(new Set(steamTagsToSelect));
+        setSelectedUserTags(new Set(userTagsToSelect));
+      } else if (mode === 'add') {
+        setSelectedTags(prev => {
+          const next = new Set(prev);
+          steamTagsToSelect.forEach(t => next.add(t));
+          return next;
+        });
+        setSelectedUserTags(prev => {
+          const next = new Set(prev);
+          userTagsToSelect.forEach(t => next.add(t));
+          return next;
+        });
+      } else if (mode === 'remove') {
+        setSelectedTags(prev => {
+          const next = new Set(prev);
+          steamTagsToSelect.forEach(t => next.delete(t));
+          return next;
+        });
+        setSelectedUserTags(prev => {
+          const next = new Set(prev);
+          userTagsToSelect.forEach(t => next.delete(t));
+          return next;
+        });
+      }
+    });
   };
 
   const handleClearAllFilters = () => {
-    setSelectedTags(new Set());
-    setSelectedUserTags(new Set());
-    setSystemFilter({ status: null, sort: null, favorite: null });
+    startFilterTransition(() => {
+      setSelectedTags(new Set());
+      setSelectedUserTags(new Set());
+      setSystemFilter({ status: null, sort: null, favorite: null, connection: null });
+    });
   };
 
   // Toggle favorite on backend and local state
@@ -1203,22 +1260,39 @@ export function App() {
 
       // 4. Steam Tags Filter (AND / OR) - ONLY ACTIVE STEAM TAGS PARTICIPATE
       if (selectedSteamTagsArray.length > 0) {
-        const deactivated = new Set(it.deactivated_steam_tags || []);
-        const activeSteamTags = (it.tags || []).filter(t => !deactivated.has(t));
+        const activeTagSet = it._activeSteamTagSet;
         if (tagMode === 'AND') {
-          if (!selectedSteamTagsArray.every(tag => activeSteamTags.includes(tag))) return false;
+          for (let i = 0; i < selectedSteamTagsArray.length; i++) {
+            if (!activeTagSet.has(selectedSteamTagsArray[i])) return false;
+          }
         } else {
-          if (!selectedSteamTagsArray.some(tag => activeSteamTags.includes(tag))) return false;
+          let hasAny = false;
+          for (let i = 0; i < selectedSteamTagsArray.length; i++) {
+            if (activeTagSet.has(selectedSteamTagsArray[i])) {
+              hasAny = true;
+              break;
+            }
+          }
+          if (!hasAny) return false;
         }
       }
 
       // 5. User Custom Tags Filter (AND / OR)
       if (selectedUserTagsArray.length > 0) {
-        const itemUserTags = it.user_tags || [];
+        const userTagSet = it._userTagSet;
         if (tagMode === 'AND') {
-          if (!selectedUserTagsArray.every(tag => itemUserTags.includes(tag))) return false;
+          for (let i = 0; i < selectedUserTagsArray.length; i++) {
+            if (!userTagSet.has(selectedUserTagsArray[i])) return false;
+          }
         } else {
-          if (!selectedUserTagsArray.some(tag => itemUserTags.includes(tag))) return false;
+          let hasAny = false;
+          for (let i = 0; i < selectedUserTagsArray.length; i++) {
+            if (userTagSet.has(selectedUserTagsArray[i])) {
+              hasAny = true;
+              break;
+            }
+          }
+          if (!hasAny) return false;
         }
       }
 
