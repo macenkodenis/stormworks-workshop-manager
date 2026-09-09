@@ -491,8 +491,9 @@ export const ItemRow = React.memo(function ItemRow({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (isUser && onToggleUserTag) onToggleUserTag(tag);
-                    else if (!isUser && onToggleTag) onToggleTag(tag);
+                    const isCtrl = e.ctrlKey || e.metaKey;
+                    if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
+                    else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
                   }}
                   className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none truncate shrink-0 cursor-pointer hover:opacity-90 ${maxTagWidth} ${pillStyle}`}
                   title={`Фільтрувати за тегом: ${displayLabel}`}

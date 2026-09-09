@@ -351,8 +351,8 @@ export function TagsSidebar({
       setAnchorKey(node.id);
     }
     const isSteam = node.tagType === 'steam';
-    if (isSteam) onToggleTag(node.tag);
-    else onToggleUserTag(node.tag);
+    if (isSteam) onToggleTag(node.tag, isCtrl);
+    else onToggleUserTag(node.tag, isCtrl);
   };
 
   // Delete a user tag node: removes from tree and invokes backend deletion across items

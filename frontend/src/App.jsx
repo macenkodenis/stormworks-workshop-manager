@@ -547,33 +547,53 @@ export function App() {
     return userTagsWithCounts.map(u => u.tag);
   }, [userTagsWithCounts]);
 
-  // Toggle Steam tag selection (non-blocking transition)
-  const handleToggleTag = (tag) => {
+  // Toggle Steam tag selection (single-select on regular click, multi-select on Ctrl+click)
+  const handleToggleTag = (tag, isCtrl = false) => {
     startFilterTransition(() => {
-      setSelectedTags(prev => {
-        const next = new Set(prev);
-        if (next.has(tag)) {
-          next.delete(tag);
-        } else {
-          next.add(tag);
-        }
-        return next;
-      });
+      if (isCtrl) {
+        setSelectedTags(prev => {
+          const next = new Set(prev);
+          if (next.has(tag)) {
+            next.delete(tag);
+          } else {
+            next.add(tag);
+          }
+          return next;
+        });
+      } else {
+        setSelectedTags(prev => {
+          if (prev.size === 1 && prev.has(tag) && selectedUserTags.size === 0) {
+            return new Set();
+          }
+          return new Set([tag]);
+        });
+        setSelectedUserTags(new Set());
+      }
     });
   };
 
-  // Toggle User tag selection (non-blocking transition)
-  const handleToggleUserTag = (tag) => {
+  // Toggle User tag selection (single-select on regular click, multi-select on Ctrl+click)
+  const handleToggleUserTag = (tag, isCtrl = false) => {
     startFilterTransition(() => {
-      setSelectedUserTags(prev => {
-        const next = new Set(prev);
-        if (next.has(tag)) {
-          next.delete(tag);
-        } else {
-          next.add(tag);
-        }
-        return next;
-      });
+      if (isCtrl) {
+        setSelectedUserTags(prev => {
+          const next = new Set(prev);
+          if (next.has(tag)) {
+            next.delete(tag);
+          } else {
+            next.add(tag);
+          }
+          return next;
+        });
+      } else {
+        setSelectedUserTags(prev => {
+          if (prev.size === 1 && prev.has(tag) && selectedTags.size === 0) {
+            return new Set();
+          }
+          return new Set([tag]);
+        });
+        setSelectedTags(new Set());
+      }
     });
   };
 
