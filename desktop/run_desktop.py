@@ -12,8 +12,14 @@ import time
 import urllib.request
 from pathlib import Path
 
-# Add backend directory to sys.path so app modules can be resolved
+# Auto-switch to project venv if invoked with system python
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+VENV_DIR = PROJECT_ROOT / "backend" / "venv"
+VENV_PYTHON = VENV_DIR / "bin" / "python"
+if VENV_PYTHON.exists() and Path(sys.prefix).resolve() != VENV_DIR.resolve():
+    os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(Path(__file__).resolve())] + sys.argv[1:])
+
+# Add backend directory to sys.path so app modules can be resolved
 BACKEND_DIR = PROJECT_ROOT / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
