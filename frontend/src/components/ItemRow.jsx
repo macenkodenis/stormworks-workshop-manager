@@ -97,12 +97,42 @@ export const ItemRow = React.memo(function ItemRow({
       tag: t,
       type: 'user'
     }));
-    return [...userTagsList, ...activeSteamTags];
-  }, [item.tags, item.user_tags, deactivatedSet]);
+    const combined = [...userTagsList, ...activeSteamTags];
+    return combined.sort((a, b) => {
+      const aActive = a.type === 'user' ? selectedUserTags.has(a.tag) : selectedSteamTags.has(a.tag);
+      const bActive = b.type === 'user' ? selectedUserTags.has(b.tag) : selectedSteamTags.has(b.tag);
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return 0;
+    });
+  }, [item.tags, item.user_tags, deactivatedSet, selectedSteamTags, selectedUserTags]);
 
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
   const descriptionSnippet = useMemo(() => cleanDescription(item.description), [item.description]);
+
+  // Tags overflow popover state
+  const [showTagsPopover, setShowTagsPopover] = useState(false);
+  const popoverTimeoutRef = useRef(null);
+
+  const handleTagsMouseEnter = () => {
+    if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
+    if (displayTags.length > visibleTagCount) {
+      setShowTagsPopover(true);
+    }
+  };
+
+  const handleTagsMouseLeave = () => {
+    popoverTimeoutRef.current = setTimeout(() => {
+      setShowTagsPopover(false);
+    }, 150);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
+    };
+  }, []);
 
   // Dynamic tags fitting to fill entire row width without wrapping or overflowing
   const tagsContainerRef = useRef(null);
@@ -180,7 +210,9 @@ export const ItemRow = React.memo(function ItemRow({
         onOpenDetail(item);
       }}
       data-view-item="row"
-      className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-row items-stretch select-none overflow-hidden ${
+      className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-row items-stretch select-none ${
+        showTagsPopover ? 'z-40' : ''
+      } ${
         isAnchor ? 'border-[#66c0f4]' : isSelected ? 'border-transparent' : 'border-[#233547] hover:border-[#38536f]'
       } ${cardBgClass} ${isUnsubscribed ? 'grayscale' : ''}`}
       style={{
@@ -203,7 +235,7 @@ export const ItemRow = React.memo(function ItemRow({
       )}
 
       {/* 1. Left Section: Thumbnail & Quick Status Badges */}
-      <div className={`relative ${thumbWidthClass} shrink-0 bg-[#101822] overflow-hidden border-r border-[#233547] flex items-center justify-center aspect-video`}>
+      <div className={`relative ${thumbWidthClass} shrink-0 bg-[#101822] overflow-hidden border-r border-[#233547] flex items-center justify-center aspect-video rounded-l-lg`}>
         {/* Favorite Star (top-left) */}
         <button
           type="button"
@@ -465,50 +497,105 @@ export const ItemRow = React.memo(function ItemRow({
 
         {/* Bottom Section: Tags Flow (single line with dynamic fit & remainder badge, zero overflow) */}
         {displayTags.length > 0 && (
-          <div ref={tagsContainerRef} className="mt-1 flex items-center gap-1 w-full overflow-hidden pt-1 border-t border-[#233547]/40 min-w-0">
-            {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
-              const isUser = type === 'user';
-              const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
-              const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+          <div
+            className="relative mt-1 pt-1 border-t border-[#233547]/40 min-w-0"
+            onMouseEnter={handleTagsMouseEnter}
+            onMouseLeave={handleTagsMouseLeave}
+          >
+            <div ref={tagsContainerRef} className="flex items-center gap-1 w-full overflow-hidden min-w-0">
+              {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
+                const isUser = type === 'user';
+                const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+                const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
 
-              let pillStyle = '';
-              if (isActive) {
-                pillStyle = isUser
-                  ? 'border border-[#f49e42] bg-[#332211] text-[#ffd699] font-semibold px-2 py-0.5 rounded-full shadow-xs'
-                  : 'border border-[#66c0f4] bg-[#162738] text-[#cce8ff] font-semibold px-2 py-0.5 rounded-full shadow-xs';
-              } else {
-                pillStyle = isUser
-                  ? 'bg-[#151a22] text-[#f49e42] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium'
-                  : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium';
-              }
+                let pillStyle = '';
+                if (isActive) {
+                  pillStyle = isUser
+                    ? 'border border-[#f49e42] bg-[#332211] text-[#ffd699] font-semibold px-2 py-0.5 rounded-full shadow-xs'
+                    : 'border border-[#66c0f4] bg-[#162738] text-[#cce8ff] font-semibold px-2 py-0.5 rounded-full shadow-xs';
+                } else {
+                  pillStyle = isUser
+                    ? 'bg-[#151a22] text-[#f49e42] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium'
+                    : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium';
+                }
 
-              const hasOverflow = displayTags.length > visibleTagCount;
-              const maxTagWidth = hasOverflow ? 'max-w-[calc(100%-40px)]' : 'max-w-[200px]';
+                const hasOverflow = displayTags.length > visibleTagCount;
+                const maxTagWidth = hasOverflow ? 'max-w-[calc(100%-40px)]' : 'max-w-[200px]';
 
-              return (
+                return (
+                  <span
+                    key={`${type}-${tag}-${idx}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const isCtrl = e.ctrlKey || e.metaKey;
+                      if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
+                      else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
+                    }}
+                    className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none truncate shrink-0 cursor-pointer hover:opacity-90 ${maxTagWidth} ${pillStyle}`}
+                    title={`Фільтрувати за тегом: ${displayLabel}`}
+                  >
+                    {displayLabel}
+                  </span>
+                );
+              })}
+              {displayTags.length > visibleTagCount && (
                 <span
-                  key={`${type}-${tag}-${idx}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const isCtrl = e.ctrlKey || e.metaKey;
-                    if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
-                    else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
-                  }}
-                  className={`text-[10.5px] sm:text-[11px] whitespace-nowrap leading-tight transition select-none truncate shrink-0 cursor-pointer hover:opacity-90 ${maxTagWidth} ${pillStyle}`}
-                  title={`Фільтрувати за тегом: ${displayLabel}`}
+                  className="text-[10px] sm:text-[10.5px] text-gray-400 font-mono font-medium self-center shrink-0 whitespace-nowrap px-1 py-0.5 bg-[#17222f] rounded border border-[#233547] cursor-pointer hover:text-white hover:border-[#66c0f4]/60 transition"
+                  title={`Ще ${displayTags.length - visibleTagCount} прихованих тегів (наведіть курсор для перегляду)`}
                 >
-                  {displayLabel}
+                  +{displayTags.length - visibleTagCount}
                 </span>
-              );
-            })}
-            {displayTags.length > visibleTagCount && (
-              <span
-                className="text-[10px] sm:text-[10.5px] text-gray-400 font-mono font-medium self-center shrink-0 whitespace-nowrap px-1 py-0.5 bg-[#17222f] rounded border border-[#233547]"
-                title={`Ще ${displayTags.length - visibleTagCount} прихованих тегів`}
+              )}
+            </div>
+
+            {/* Overflow Popover showing full list of tags */}
+            {showTagsPopover && displayTags.length > visibleTagCount && (
+              <div
+                className="absolute bottom-full left-0 mb-1.5 z-50 min-w-[240px] max-w-[420px] max-h-52 overflow-y-auto bg-[#0e1622]/98 backdrop-blur-md border border-[#2c4257] rounded-lg shadow-2xl p-2.5 flex flex-wrap gap-1.5"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onMouseEnter={handleTagsMouseEnter}
+                onMouseLeave={handleTagsMouseLeave}
               >
-                +{displayTags.length - visibleTagCount}
-              </span>
+                <div className="w-full flex items-center justify-between pb-1.5 mb-0.5 border-b border-[#233547]/80 text-[11px] text-[#8f98a0]">
+                  <span className="font-semibold text-gray-300">Всі теги ({displayTags.length})</span>
+                  <span className="text-[10px] text-[#657484]">Ctrl+клік для кількох</span>
+                </div>
+                {displayTags.map(({ tag, type }, idx) => {
+                  const isUser = type === 'user';
+                  const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
+                  const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+                  let pillStyle = '';
+                  if (isActive) {
+                    pillStyle = isUser
+                      ? 'border border-[#f49e42] bg-[#332211] text-[#ffd699] font-semibold px-2 py-0.5 rounded-full shadow-xs'
+                      : 'border border-[#66c0f4] bg-[#162738] text-[#cce8ff] font-semibold px-2 py-0.5 rounded-full shadow-xs';
+                  } else {
+                    pillStyle = isUser
+                      ? 'bg-[#151a22] text-[#f49e42] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#f49e42]/60'
+                      : 'bg-[#151a22] text-[#66c0f4] border border-[#233547]/50 px-1.5 py-0.5 rounded-md font-medium hover:border-[#66c0f4]/60';
+                  }
+                  return (
+                    <span
+                      key={`popover-${type}-${tag}-${idx}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const isCtrl = e.ctrlKey || e.metaKey;
+                        if (isUser && onToggleUserTag) onToggleUserTag(tag, isCtrl);
+                        else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
+                      }}
+                      className={`text-xs whitespace-nowrap leading-tight transition select-none cursor-pointer ${pillStyle}`}
+                      title={`Фільтрувати за тегом: ${displayLabel}`}
+                    >
+                      {displayLabel}
+                    </span>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
