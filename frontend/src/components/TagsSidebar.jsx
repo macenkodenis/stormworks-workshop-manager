@@ -54,6 +54,26 @@ export function TagsSidebar({
   const [dropTarget, setDropTarget] = useState(null); // { targetId, position: 'before' | 'inside' | 'after' }
   const isDraggingRef = useRef(false);
   const draggedNodeRef = useRef(null);
+  const lastDropOrDragEndTimeRef = useRef(0);
+
+  // Global cleanup to guarantee drag state is reset even if browser drops outside or unmounts during drag
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      lastDropOrDragEndTimeRef.current = Date.now();
+      isDraggingRef.current = false;
+      draggedNodeRef.current = null;
+      setDraggedNode(null);
+      setDropTarget(null);
+    };
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+    window.addEventListener('mouseup', handleGlobalDragEnd);
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
+      window.removeEventListener('mouseup', handleGlobalDragEnd);
+    };
+  }, []);
 
   // Helper to test if a tag is a game version tag
   const isVersionTag = (tagName) => {
@@ -309,7 +329,12 @@ export function TagsSidebar({
 
   // Node Selection Handler (Tag)
   const handleNodeClick = (e, node) => {
-    if (isDraggingRef.current) return;
+    // Prevent synthetic click immediately after dropping or dragging
+    if (Date.now() - lastDropOrDragEndTimeRef.current < 200) {
+      return;
+    }
+    isDraggingRef.current = false;
+    draggedNodeRef.current = null;
 
     const isCtrl = e.ctrlKey || e.metaKey;
     const isShift = e.shiftKey;
@@ -412,10 +437,9 @@ export function TagsSidebar({
   };
 
   const handleDragEnd = () => {
-    setTimeout(() => {
-      isDraggingRef.current = false;
-      draggedNodeRef.current = null;
-    }, 50);
+    lastDropOrDragEndTimeRef.current = Date.now();
+    isDraggingRef.current = false;
+    draggedNodeRef.current = null;
     setDraggedNode(null);
     setDropTarget(null);
   };
@@ -464,6 +488,9 @@ export function TagsSidebar({
 
     const currentDragged = draggedNodeRef.current || draggedNode;
     if (!currentDragged || currentDragged.id === targetNode.id) {
+      lastDropOrDragEndTimeRef.current = Date.now();
+      isDraggingRef.current = false;
+      draggedNodeRef.current = null;
       setDraggedNode(null);
       setDropTarget(null);
       return;
@@ -561,6 +588,9 @@ export function TagsSidebar({
 
     setTree(updatedTree);
     saveTreeToBackend(updatedTree);
+    lastDropOrDragEndTimeRef.current = Date.now();
+    isDraggingRef.current = false;
+    draggedNodeRef.current = null;
     setDraggedNode(null);
     setDropTarget(null);
   };
