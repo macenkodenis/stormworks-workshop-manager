@@ -12,36 +12,45 @@ import websockets
 from ..config import APP_ID, BASE_DIR
 from ..db.session import get_connection
 from ..scanner.vdf_parser import parse_vdf, dumps_vdf
+from ..scanner.steam_discovery import find_steam_root as discover_steam_root, find_subscriptions_vdf as discover_subscriptions_vdf
 
 DEBUG_PORT = 8080
 
 class SteamService:
     @staticmethod
     def find_steam_root() -> Path:
-        candidates = [
-            Path.home() / ".local" / "share" / "Steam",
-            Path.home() / ".steam" / "steam",
-            Path.home() / ".steam" / "root",
-        ]
-        for p in candidates:
-            if p.exists() and (p / "steamapps").exists():
-                return p
+        root = discover_steam_root()
+        if root:
+            return root
         return Path.home() / ".local" / "share" / "Steam"
 
     @staticmethod
     def find_subscriptions_vdf() -> Optional[Path]:
-        steam_root = SteamService.find_steam_root()
-        userdata = steam_root / "userdata"
-        if not userdata.exists():
-            return None
-        matches = list(userdata.glob(f"*/ugc/{APP_ID}_subscriptions.vdf"))
-        if matches:
-            return matches[0]
-        return None
+        return discover_subscriptions_vdf(app_id=APP_ID)
 
     @staticmethod
     def get_steam_pid() -> Optional[int]:
         """Finds the main Steam client PID via pidfile or exact process match."""
+        import sys
+        if sys.platform == "win32":
+            try:
+                creationflags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+                res = subprocess.run(
+                    ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/FO", "CSV", "/NH"],
+                    capture_output=True,
+                    text=True,
+                    creationflags=creationflags
+                )
+                for line in res.stdout.splitlines():
+                    parts = line.strip().split(",")
+                    if len(parts) >= 2 and "steam.exe" in parts[0].lower():
+                        clean_pid = parts[1].strip('"')
+                        if clean_pid.isdigit():
+                            return int(clean_pid)
+            except Exception:
+                pass
+            return None
+
         candidates = [
             Path.home() / ".steam" / "steam.pid",
             Path.home() / ".local" / "share" / "Steam" / "steam.pid"
@@ -104,10 +113,19 @@ class SteamService:
         waits for termination, verifies port availability, and relaunches with '-cef-enable-debugging'.
         """
         pid = SteamService.get_steam_pid()
+        steam_root = SteamService.find_steam_root()
+        import sys
+        is_win = sys.platform == "win32"
+        creationflags = subprocess.CREATE_NO_WINDOW if (is_win and hasattr(subprocess, "CREATE_NO_WINDOW")) else 0
+
         if pid is not None:
             # 1. Graceful shutdown
             try:
-                subprocess.run(["steam", "-shutdown"], capture_output=True, timeout=5)
+                if is_win:
+                    steam_exe = steam_root / "steam.exe" if (steam_root / "steam.exe").exists() else Path("C:/Program Files (x86)/Steam/steam.exe")
+                    subprocess.run([str(steam_exe), "-shutdown"], capture_output=True, timeout=5, creationflags=creationflags)
+                else:
+                    subprocess.run(["steam", "-shutdown"], capture_output=True, timeout=5)
             except Exception as e:
                 print(f"Error executing steam -shutdown: {e}")
 
@@ -117,12 +135,15 @@ class SteamService:
                 if not SteamService.is_steam_running():
                     break
 
-            # If still running, send SIGTERM to main PID
+            # If still running, terminate
             if SteamService.is_steam_running():
                 current_pid = SteamService.get_steam_pid()
                 if current_pid:
                     try:
-                        os.kill(current_pid, 15)
+                        if is_win:
+                            subprocess.run(["taskkill", "/F", "/PID", str(current_pid)], capture_output=True, creationflags=creationflags)
+                        else:
+                            os.kill(current_pid, 15)
                     except OSError:
                         pass
                 for _ in range(10):
@@ -147,21 +168,30 @@ class SteamService:
         if not port_free and not SteamService.is_cef_debugging_active(port):
             return {
                 "status": "error",
-                "message": f"Порт {port} зайнято іншою програмою. Будь ласка, звільніть порт {port}."
+                "message": f"???? {port} ??????? ????? ?????????. ???? ?????, ????????? ???? {port}."
             }
 
         # 3. Relaunch steam with -cef-enable-debugging
         try:
-            import shutil
-            steam_binary = shutil.which("steam") or "/usr/bin/steam"
-            env = os.environ.copy()
-            subprocess.Popen(
-                [steam_binary, "-cef-enable-debugging"],
-                start_new_session=True,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
+            if is_win:
+                steam_exe = steam_root / "steam.exe" if (steam_root / "steam.exe").exists() else Path("C:/Program Files (x86)/Steam/steam.exe")
+                subprocess.Popen(
+                    [str(steam_exe), "-cef-enable-debugging"],
+                    creationflags=creationflags,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            else:
+                import shutil
+                steam_binary = shutil.which("steam") or "/usr/bin/steam"
+                env = os.environ.copy()
+                subprocess.Popen(
+                    [steam_binary, "-cef-enable-debugging"],
+                    start_new_session=True,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
         except Exception as e:
             return {"status": "error", "message": f"Failed to launch steam: {e}"}
 
@@ -178,7 +208,7 @@ class SteamService:
             "is_running": SteamService.is_steam_running(),
             "cef_debugging": ready,
             "debug_port": port,
-            "message": "Steam успішно перезапущено з прапорцем відлагодження!" if ready else "Steam запущено, очікування порту CEF..."
+            "message": "Steam ??????? ???????????? ? ????????? ?????????????!" if ready else "Steam ????????, ?????????? ????? CEF..."
         }
 
     @staticmethod
@@ -194,7 +224,7 @@ class SteamService:
 
             target_ws_url = None
 
-            # Priority 1: SharedJSContext — this is where SteamClient.Apps lives
+            # Priority 1: SharedJSContext - this is where SteamClient.Apps lives
             for t in targets:
                 title = t.get("title", "")
                 url = t.get("url", "")
@@ -239,7 +269,7 @@ class SteamService:
                         # Raise if there was an exception
                         if "exceptionDetails" in result:
                             exc = result["exceptionDetails"]
-                            raise RuntimeError(f"JS exception: {exc.get('text','unknown')} — {exc.get('exception', {}).get('description','')}")
+                            raise RuntimeError(f"JS exception: {exc.get('text','unknown')} - {exc.get('exception', {}).get('description','')}")
                         return result.get("result", {})
 
         except Exception as e:

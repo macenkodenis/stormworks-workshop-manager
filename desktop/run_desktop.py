@@ -245,13 +245,13 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
             return
         gui_engine = "gtk"
     elif requested_gui == "auto":
-        if sys.platform.startswith("win"):
-            # Windows 10/11: prefer Edge WebView2 (lightweight, native)
+        if has_qt:
+            gui_engine = "qt"
+        elif sys.platform.startswith("win"):
+            # Windows fallback to Edge WebView2 (lightweight, native)
             gui_engine = "edgechromium"
         elif sys.platform.startswith("linux"):
-            if has_qt:
-                gui_engine = "qt"
-            elif has_gtk_webkit():
+            if has_gtk_webkit():
                 gui_engine = "gtk"
             else:
                 print("[!] Note: Neither PyQt6 nor WebKitGTK found for native window.")
@@ -264,21 +264,40 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
     print("=" * 60)
     print(f"[*] Engine: {gui_engine or 'auto'} | Port: {port}")
 
-    server_config = uvicorn.Config(
-        app,
-        host=host,
-        port=port,
-        log_level="warning",
-        access_log=False
+    import subprocess
+    import atexit
+
+    # Run the server in a separate process to avoid GIL deadlocks with WinForms/Cocoa GUI loops
+    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    if getattr(sys, 'frozen', False):
+        server_cmd = [sys.executable, "--server", "--no-browser", "--port", str(port), "--host", host]
+    else:
+        server_cmd = [sys.executable, str(Path(__file__).resolve()), "--server", "--no-browser", "--port", str(port), "--host", host]
+
+    server_proc = subprocess.Popen(
+        server_cmd,
+        creationflags=creationflags,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
     )
-    server = uvicorn.Server(config=server_config)
-    server_thread = threading.Thread(target=server.run, daemon=True, name="DesktopUvicornServer")
-    server_thread.start()
+
+    def _terminate_server():
+        if server_proc.poll() is None:
+            try:
+                server_proc.terminate()
+                server_proc.wait(timeout=2.0)
+            except Exception:
+                try:
+                    server_proc.kill()
+                except Exception:
+                    pass
+
+    atexit.register(_terminate_server)
 
     print("[*] Waiting for backend readiness...")
-    if not wait_for_server(host, port, timeout=10.0):
+    if not wait_for_server(host, port, timeout=15.0):
         print("[!] Error: Backend server did not respond in time.")
-        server.should_exit = True
+        _terminate_server()
         sys.exit(1)
 
     print("[OK] Backend ready! Opening application window...")
@@ -346,15 +365,17 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
     except Exception as e:
         print(f"[!] Native GUI launch failed ({e}). Falling back to browser server mode...")
         webbrowser.open(f"http://{host}:{port}")
-        while server_thread.is_alive():
+        while server_proc.poll() is None:
             time.sleep(1.0)
     finally:
         print("\n[*] Desktop window closed. Shutting down embedded server...")
-        server.should_exit = True
-        server_thread.join(timeout=2.0)
+        _terminate_server()
         print("[OK] Clean exit completed.")
 
 def main():
+    import multiprocessing
+    multiprocessing.freeze_support()
+
     parser = argparse.ArgumentParser(description="Stormworks Steam Workshop Manager")
     parser.add_argument("--server", "--headless", action="store_true", help="Run in clean server mode without desktop window")
     parser.add_argument("--gui", default="auto", choices=["auto", "qt", "edge", "gtk"], help="Specify desktop webview engine")
