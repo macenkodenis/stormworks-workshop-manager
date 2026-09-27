@@ -26,7 +26,7 @@ from typing import Optional, Dict, Any, List
 
 router = APIRouter(prefix="/api/updater", tags=["updater"])
 
-CURRENT_VERSION = "v0.1.0-beta.1"
+CURRENT_VERSION = "v0.1.1-beta-updatable"
 GITHUB_REPO = "macenkodenis/stormworks-workshop-manager"
 GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
 

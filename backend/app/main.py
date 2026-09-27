@@ -29,7 +29,7 @@ from .scanner.ingame_folders import (
 )
 from .updater import router as updater_router
 
-app = FastAPI(title="Stormworks Workshop Manager API", version="0.1.0-beta.1")
+app = FastAPI(title="Stormworks Workshop Manager API", version="0.1.1-beta-updatable")
 app.include_router(data_sync_router)
 app.include_router(updater_router)
 

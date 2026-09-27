@@ -15,6 +15,16 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
+# Safe Unicode output handling for Windows terminals (e.g. cp1252 / cp437)
+if sys.platform == "win32":
+    try:
+        if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Auto-switch to project venv if invoked with system python and running from source
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VENV_DIR = PROJECT_ROOT / "backend" / "venv"
@@ -166,7 +176,7 @@ def wait_for_server(host: str, port: int, timeout: float = 10.0) -> bool:
 def run_server_mode(host: str, port: int, open_browser: bool = True):
     """Run in clean headless server mode without GUI dependencies."""
     print("=" * 65)
-    print("  Stormworks Steam Workshop Manager — Server Edition")
+    print("  Stormworks Steam Workshop Manager - Server Edition")
     print("=" * 65)
     print(f"[*] Server address:  http://{host}:{port}")
     print(f"[*] API Status URL:  http://{host}:{port}/api/status")
@@ -193,7 +203,7 @@ def run_server_mode(host: str, port: int, open_browser: bool = True):
         server.run()
     except KeyboardInterrupt:
         print("\n[*] Stopping server...")
-    print("[✓] Server stopped cleanly.")
+    print("[OK] Server stopped cleanly.")
 
 def has_gtk_webkit() -> bool:
     try:
@@ -250,7 +260,7 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
                 return
 
     print("=" * 60)
-    print("  Stormworks Workshop Manager — Desktop Application")
+    print("  Stormworks Workshop Manager - Desktop Application")
     print("=" * 60)
     print(f"[*] Engine: {gui_engine or 'auto'} | Port: {port}")
 
@@ -271,7 +281,7 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
         server.should_exit = True
         sys.exit(1)
 
-    print("[✓] Backend ready! Opening application window...")
+    print("[OK] Backend ready! Opening application window...")
 
     class DesktopApi:
         def __init__(self):
@@ -342,7 +352,7 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
         print("\n[*] Desktop window closed. Shutting down embedded server...")
         server.should_exit = True
         server_thread.join(timeout=2.0)
-        print("[✓] Clean exit completed.")
+        print("[OK] Clean exit completed.")
 
 def main():
     parser = argparse.ArgumentParser(description="Stormworks Steam Workshop Manager")

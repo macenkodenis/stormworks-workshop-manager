@@ -49,7 +49,7 @@ export function SettingsModal({
       const data = await res.json();
       setUpdateCheckResult(data);
     } catch (err) {
-      setUpdateCheckResult({ has_update: false, current_version: 'v0.1.0-beta.1', error: err.message });
+      setUpdateCheckResult({ has_update: false, current_version: 'v0.1.1-beta-updatable', error: err.message });
     } finally {
       setIsCheckingUpdates(false);
     }
@@ -618,7 +618,7 @@ export function SettingsModal({
                         {t('settings.softwareUpdates')}
                       </span>
                       <span className="text-[11px] text-gray-400 block">
-                        {t('settings.currentVersion', { version: 'v0.1.0-beta.1' })}
+                        {t('settings.currentVersion', { version: updateCheckResult?.current_version || 'v0.1.1-beta-updatable' })}
                       </span>
                     </div>
                     <button

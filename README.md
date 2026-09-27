@@ -40,9 +40,8 @@ A desktop and web utility for managing subscribed Steam Workshop creations for *
 * **Offline Metadata & Cache**: Stores vehicle descriptions, author details, preview thumbnails, and full screenshot galleries in a local SQLite database for offline browsing and filtering.
 * **Vehicle Folder Management**: Synchronizes organizational folders directly into in-game vehicle directories (`save.xml`). Includes active game process detection to avoid write conflicts.
 * **Hierarchical Tagging & Auto-Classifier**: User-defined tag tree with an automated rule engine that classifies vehicles based on keywords in titles, descriptions, and Workshop tags.
-* **Collections & Presets**: Imports Steam Workshop Collections by URL or ID. Supports export and import of tag configurations (`.swtags` format).
-* **Architecture**: FastAPI backend with a React 19 / Tailwind CSS interface. Deployable as a native desktop application or as a lightweight server accessible via web browser.
-* **Built-in Update Checker**: Checks for the latest GitHub releases directly from the settings interface with changelog summaries.
+* **In-Place Smart Auto-Updater**: Checks for updates at startup or on demand from Settings. Safely downloads and installs new releases directly over the current installation without overwriting the local database (`stormworks_workshop.db`), user-defined tags, or custom configurations.
+* **Full Data Backups & Presets**: Export complete database backups including user tags, collections, and in-game folder snapshots, or share modular tag presets (`.swtags.json`).
 
 ---
 
@@ -68,7 +67,15 @@ The application is distributed in three editions for Linux and Windows:
   * **Server** runs the backend locally and displays the interface in your existing browser (Chromium/Firefox) with full hardware acceleration.
   * **Slim** requires `webkit2gtk-4.1`. If not installed, it falls back to browser mode automatically.
 
-Binaries are available under [Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases).
+Binaries are available under [Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases). For release notes and version history, see [CHANGELOG.md](CHANGELOG.md).
+
+### Automatic Updates
+
+The application checks for new releases on startup (or via **Settings → Check for Updates**). When a new version is detected:
+1. An update window displays the changelog and release notes.
+2. Clicking **Update Now** downloads the package matching your OS and edition.
+3. The update extracts in-place directly over application files without touching your local database (`stormworks_workshop.db`), tag rules, or collections.
+4. The application prompts to restart and resumes with all data intact.
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "name": "stormworks-workshop-manager",
   "private": true,
-  "version": "0.1.0-beta.1",
+  "version": "0.1.1-beta-updatable",
   "type": "module",
   "scripts": {
     "dev": "vite",

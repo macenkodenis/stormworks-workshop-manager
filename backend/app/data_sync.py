@@ -41,7 +41,27 @@ def create_safety_backup() -> Path:
     cur.execute("SELECT * FROM steam_authors")
     authors_rows = [dict(r) for r in cur.fetchall()]
 
+    # Dump collections
+    cur.execute("SELECT * FROM collections")
+    collections_rows = [dict(r) for r in cur.fetchall()]
+
+    # Dump collection_items
+    cur.execute("SELECT * FROM collection_items")
+    col_items_rows = [dict(r) for r in cur.fetchall()]
+
     conn.close()
+
+    # Capture in-game folders snapshot from save.xml if available
+    try:
+        from .scanner.ingame_folders import get_ingame_folders_data
+        folders_info = get_ingame_folders_data()
+        ingame_folders_snapshot = {
+            "folders": folders_info.get("folders", []),
+            "item_to_folder": folders_info.get("item_to_folder", {}),
+            "save_path": folders_info.get("save_path")
+        }
+    except Exception:
+        ingame_folders_snapshot = None
 
     backup_data = {
         "format": "stormworks_manager_full_backup",
@@ -52,6 +72,9 @@ def create_safety_backup() -> Path:
         "custom_user_tags": tags_rows,
         "workshop_items": items_rows,
         "steam_authors": authors_rows,
+        "collections": collections_rows,
+        "collection_items": col_items_rows,
+        "ingame_folders": ingame_folders_snapshot,
     }
 
     with open(backup_file, "w", encoding="utf-8") as f:
@@ -184,7 +207,24 @@ def export_full_backup():
     cur.execute("SELECT * FROM steam_authors")
     authors = [dict(r) for r in cur.fetchall()]
 
+    cur.execute("SELECT * FROM collections")
+    collections = [dict(r) for r in cur.fetchall()]
+
+    cur.execute("SELECT * FROM collection_items")
+    col_items = [dict(r) for r in cur.fetchall()]
+
     conn.close()
+
+    try:
+        from .scanner.ingame_folders import get_ingame_folders_data
+        folders_info = get_ingame_folders_data()
+        ingame_folders_snapshot = {
+            "folders": folders_info.get("folders", []),
+            "item_to_folder": folders_info.get("item_to_folder", {}),
+            "save_path": folders_info.get("save_path")
+        }
+    except Exception:
+        ingame_folders_snapshot = None
 
     backup = {
         "format": "stormworks_manager_full_backup",
@@ -194,6 +234,9 @@ def export_full_backup():
         "custom_user_tags": custom_tags,
         "workshop_items": items,
         "steam_authors": authors,
+        "collections": collections,
+        "collection_items": col_items,
+        "ingame_folders": ingame_folders_snapshot,
     }
     return backup
 
@@ -221,6 +264,10 @@ def preview_import(payload: Dict[str, Any]):
             "items_count": len(items),
             "custom_tags_count": len(payload.get("custom_user_tags", [])),
             "settings_count": len(payload.get("app_settings", [])),
+            "collections_count": len(payload.get("collections", [])),
+            "collection_items_count": len(payload.get("collection_items", [])),
+            "has_ingame_folders": bool(payload.get("ingame_folders")),
+            "ingame_folders_count": len(payload.get("ingame_folders", {}).get("folders", [])) if payload.get("ingame_folders") else 0,
         }
 
     if fmt != "stormworks_tag_pack":
@@ -660,11 +707,35 @@ def restore_full_backup(req: RestoreBackupRequest):
                 query = f"INSERT INTO workshop_items ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT(published_file_id) DO UPDATE SET {updates}"
                 cur.execute(query, [it[k] for k in cols])
 
+        # 4. Restore collections
+        if "collections" in data:
+            for col in data["collections"]:
+                cols = [k for k in col.keys()]
+                placeholders = ",".join("?" for _ in cols)
+                updates = ",".join(f"{k} = excluded.{k}" for k in cols if k != "id")
+                query = f"INSERT INTO collections ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT(id) DO UPDATE SET {updates}"
+                cur.execute(query, [col[k] for k in cols])
+
+        # 5. Restore collection_items
+        if "collection_items" in data:
+            for ci in data["collection_items"]:
+                cols = [k for k in ci.keys()]
+                placeholders = ",".join("?" for _ in cols)
+                query = f"INSERT OR REPLACE INTO collection_items ({','.join(cols)}) VALUES ({placeholders})"
+                cur.execute(query, [ci[k] for k in cols])
+
+        # 6. Restore in-game folders snapshot into app_settings for reference
+        if "ingame_folders" in data and data["ingame_folders"]:
+            cur.execute(
+                "INSERT INTO app_settings (key, value) VALUES ('backup_ingame_folders', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (json.dumps(data["ingame_folders"]),)
+            )
+
         conn.commit()
     except Exception as e:
         conn.rollback()
         conn.close()
-        raise HTTPException(status_code=500, detail=f"Помилка відновлення бекапу: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore backup: {str(e)}")
 
     conn.close()
     return {
