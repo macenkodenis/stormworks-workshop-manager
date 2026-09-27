@@ -281,21 +281,21 @@ export function Header({
         <div
           ref={headerRightRef}
           style={{ width: rightWidth ? `${rightWidth}px` : 'auto' }}
-          className="shrink-0 flex items-center justify-end gap-2"
+          className="shrink-0 flex items-center justify-end gap-2 overflow-hidden"
         >
           <button
             type="button"
             onClick={onRefresh}
             disabled={isScanning}
             title={t('header.refreshQuickTooltip')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-white transition shadow ${
+            className={`flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-semibold text-white whitespace-nowrap shrink-0 transition shadow ${
               isScanning
                 ? 'bg-[#2b3a4a] text-gray-400 cursor-not-allowed'
                 : 'bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] cursor-pointer'
             }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 pointer-events-none ${isScanning ? 'animate-spin text-[#66c0f4]' : ''}`} />
-            <span className="hidden sm:inline pointer-events-none">{isScanning ? t('header.refreshScanning') : t('header.quickSync')}</span>
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 pointer-events-none ${isScanning ? 'animate-spin text-[#66c0f4]' : ''}`} />
+            <span className="hidden sm:inline pointer-events-none whitespace-nowrap">{isScanning ? t('header.refreshScanning') : t('header.quickSync')}</span>
           </button>
 
           <button
@@ -306,10 +306,10 @@ export function Header({
             }}
             title={`${t('header.settings')} (Ctrl+,)`}
             aria-label={t('header.settings')}
-            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] text-gray-200 hover:text-white transition shadow cursor-pointer text-xs font-semibold"
+            className="flex items-center justify-center gap-1.5 px-2.5 h-8 rounded-md bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] text-gray-200 hover:text-white whitespace-nowrap shrink-0 transition shadow cursor-pointer text-xs font-semibold"
           >
-            <Settings className="w-4 h-4 pointer-events-none" />
-            <span className="hidden xl:inline pointer-events-none">{t('header.settings')}</span>
+            <Settings className="w-4 h-4 shrink-0 pointer-events-none" />
+            <span className="hidden xl:inline pointer-events-none whitespace-nowrap">{t('header.settings')}</span>
           </button>
         </div>
 

@@ -50,10 +50,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
-      - name: Package Applications with PyInstaller (Standalone, Slim, Server)
+      - name: Package Applications with PyInstaller (Slim, Server, and Linux Standalone)
         shell: bash
         run: |
-          pyinstaller --clean --noconfirm desktop/desktop.spec
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            pyinstaller --clean --noconfirm desktop/desktop.spec
+          fi
           pyinstaller --clean --noconfirm desktop/desktop_slim.spec
           pyinstaller --clean --noconfirm desktop/server.spec
 
@@ -68,7 +70,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/StormworksWorkshopManager -DestinationPath StormworksWorkshopManager-Windows-Standalone-x64.zip
           Compress-Archive -Path dist/StormworksWorkshopManager-Slim -DestinationPath StormworksWorkshopManager-Windows-Slim-x64.zip
           Compress-Archive -Path dist/StormworksWorkshopManager-Server -DestinationPath StormworksWorkshopManager-Server-Windows-x64.zip
 

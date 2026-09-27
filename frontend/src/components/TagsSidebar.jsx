@@ -178,7 +178,7 @@ export function TagsSidebar({
   }, [onTagStructureChange]);
 
   // Load tree structure from backend API on mount
-  const hasLoadedRef = useRef(false);
+  const [isStructureLoaded, setIsStructureLoaded] = useState(false);
   useEffect(() => {
     fetch('/api/tag-structure')
       .then(res => res.json())
@@ -195,11 +195,11 @@ export function TagsSidebar({
             saveTreeToBackend(migrated);
           }
         }
-        hasLoadedRef.current = true;
+        setIsStructureLoaded(true);
       })
       .catch(err => {
         console.warn('Failed to load tag structure:', err);
-        hasLoadedRef.current = true;
+        setIsStructureLoaded(true);
       });
   }, [onTagStructureChange, saveTreeToBackend]);
 
@@ -225,7 +225,7 @@ export function TagsSidebar({
 
   // Synchronize tree with available tags (strictly prevents duplicate tag names with Steam priority)
   useEffect(() => {
-    if (!hasLoadedRef.current) return;
+    if (!isStructureLoaded) return;
 
     setTree(prevTree => {
       const cleanTree = deduplicateTagTree(prevTree, allSteamTagsSet);
@@ -303,7 +303,7 @@ export function TagsSidebar({
       saveTreeToBackend(cleanTree);
       return cleanTree;
     });
-  }, [generalSteamNamesKey, userTagNamesKey, allSteamTagsSet]);
+  }, [isStructureLoaded, generalSteamNamesKey, userTagNamesKey, allSteamTagsSet]);
 
   // Visibility check: Steam tags with 0 items are hidden from sidebar, but user tags with 0 remain; plus filterQuery search
   // If hideEmptyTags is active, any tag (Steam or User) with count === 0 is hidden unless it is selected, excluded, or has visible children
