@@ -79,6 +79,8 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_is_sorted ON workshop_items(is_sorted);")
     if "api_gallery_json" not in existing_cols:
         cur.execute("ALTER TABLE workshop_items ADD COLUMN api_gallery_json TEXT;")
+    if "api_descriptions_json" not in existing_cols:
+        cur.execute("ALTER TABLE workshop_items ADD COLUMN api_descriptions_json TEXT DEFAULT '{}';")
 
     # Table for app settings / preferences (e.g. tag structure, groups, ordering)
     cur.execute("""
@@ -104,6 +106,33 @@ def init_db():
         updated_at INTEGER NOT NULL
     );
     """)
+
+    # Tables for Collections system
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS collections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        steam_collection_id TEXT,
+        color TEXT DEFAULT '#66c0f4',
+        icon TEXT DEFAULT 'folder',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS collection_items (
+        collection_id INTEGER NOT NULL,
+        published_file_id TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (collection_id, published_file_id),
+        FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+    );
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_col_items_item ON collection_items(published_file_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_col_items_col ON collection_items(collection_id);")
 
     conn.commit()
     conn.close()

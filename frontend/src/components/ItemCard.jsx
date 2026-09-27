@@ -1,24 +1,19 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { ExternalLink, HardDrive, Calendar, Clock, CheckCircle2, Star, PowerOff, Power, Trash2, X } from 'lucide-react';
-import { getTagDisplayPath, estimateTagWidth, observeElementResize } from '../utils/tagUtils';
-
-const cleanDescription = (text) => {
-  if (!text) return '';
-  return text
-    .replace(/\[\/?(b|i|u|h[1-6]|url|quote|code|list|\*|table|tr|th|td|img|previewimg|strike|spoiler|noparse)[^\]]*\]/gi, ' ')
-    .replace(/https?:\/\/\S+/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
+import React, { useRef, useMemo } from 'react';
+import { ExternalLink, HardDrive, Calendar, Clock, Trash2, PowerOff, CheckCircle2 } from 'lucide-react';
+import { getTagDisplayPath, cleanDescription } from '../utils/tagUtils';
+import { formatBytes, formatDate } from '../utils/formatters';
+import { useDynamicTagFit } from '../hooks/useDynamicTagFit';
+import { FavoriteStar, ItemStatusBadges } from './ItemBadges';
+import { useI18n } from '../i18n/I18nContext';
 
 function areItemCardPropsEqual(prev, next) {
   if (prev.item !== next.item) return false;
-  if (prev.index !== next.index) return false;
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.isAnchor !== next.isAnchor) return false;
   if (prev.pendingAction !== next.pendingAction) return false;
   if (prev.cardSize !== next.cardSize) return false;
   if (prev.tagPathMap !== next.tagPathMap) return false;
+  if (prev.tagFullPathMap !== next.tagFullPathMap) return false;
 
   // Check if any tags on this specific item changed active highlight state
   if (prev.selectedSteamTags !== next.selectedSteamTags) {
@@ -57,34 +52,22 @@ export const ItemCard = React.memo(function ItemCard({
   pendingAction = null,
   onRemovePendingAction,
   tagPathMap,
+  tagFullPathMap,
   cardSize = 2,
   onToggleTag,
-  onToggleUserTag
+  onToggleUserTag,
+  onContextMenu
 }) {
-  const formatBytes = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Format: dd.mm.yy (without time)
-  const formatDate = (unixTs) => {
-    if (!unixTs) return '—';
-    const d = new Date(unixTs * 1000);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${dd}.${mm}.${yy}`;
-  };
-
+  const { t, tTag } = useI18n();
   const previewSrc = `/api/previews/${item.published_file_id}`;
 
   // Unified tags for ItemCard: active Steam tags + User tags
-  const deactivatedSet = useMemo(() => new Set(item.deactivated_steam_tags || []), [item.deactivated_steam_tags]);
+  const deactivatedSet = useMemo(
+    () => new Set((item.deactivated_steam_tags || []).map(t => String(t).toLowerCase())),
+    [item.deactivated_steam_tags]
+  );
   const displayTags = useMemo(() => {
-    const activeSteamTags = (item.tags || []).filter(t => !deactivatedSet.has(t)).map(t => ({
+    const activeSteamTags = (item.tags || []).filter(t => t && !deactivatedSet.has(String(t).toLowerCase())).map(t => ({
       tag: t,
       type: 'steam'
     }));
@@ -105,80 +88,29 @@ export const ItemCard = React.memo(function ItemCard({
   const isDisabled = Boolean(item.is_disabled);
   const isUnsubscribed = Boolean(item.is_unsubscribed);
   const authorName = item.creator_name || item.creator;
-  const descriptionSnippet = useMemo(() => cleanDescription(item.description), [item.description]);
+  const descriptionSnippet = useMemo(() => {
+    if (cardSize !== 3 || !item.description) return '';
+    return cleanDescription(item.description);
+  }, [item.description, cardSize]);
 
-  // Tags overflow popover state
-  const [showTagsPopover, setShowTagsPopover] = useState(false);
-  const popoverTimeoutRef = useRef(null);
-
-  const handleTagsMouseEnter = () => {
-    if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
-    if (displayTags.length > visibleTagCount) {
-      setShowTagsPopover(true);
-    }
-  };
-
-  const handleTagsMouseLeave = () => {
-    popoverTimeoutRef.current = setTimeout(() => {
-      setShowTagsPopover(false);
-    }, 150);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
-    };
-  }, []);
-
-  // Dynamic tags fitting to fill entire card width (single line)
+  // Dynamic tags fitting hook
+  const cardRef = useRef(null);
   const tagsContainerRef = useRef(null);
-  // Fast initial estimate so cards don't need a forced layout reflow or immediate secondary re-render on mount
-  const initialFit = Math.min(displayTags.length, cardSize === 1 ? 2 : cardSize === 2 ? 3 : 5);
-  const [visibleTagCount, setVisibleTagCount] = useState(initialFit);
+  const defaultFit = Math.min(displayTags.length, cardSize === 1 ? 2 : cardSize === 2 ? 3 : 5);
 
-  useEffect(() => {
-    const container = tagsContainerRef.current;
-    if (!container || displayTags.length === 0) return;
-
-    const computeFit = () => {
-      if (typeof document !== 'undefined' && document.body.classList.contains('is-resizing')) return;
-      const containerWidth = container.offsetWidth;
-      if (containerWidth <= 0) return;
-
-      let totalWidth = 0;
-      let fitCount = 0;
-      const gap = 4; // gap-1 is 4px
-      const remainderReserve = 36; // Full reserve for "+N" badge including padding/border
-
-      for (let i = 0; i < displayTags.length; i++) {
-        const { tag, type } = displayTags[i];
-        const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
-        const tagWidth = estimateTagWidth(displayLabel, false);
-        const needed = totalWidth + tagWidth + (fitCount > 0 ? gap : 0);
-        
-        // If there are more tags after this one, reserve space for +N
-        const hasMore = i < displayTags.length - 1;
-        if (needed + (hasMore ? gap + remainderReserve : 0) <= containerWidth) {
-          totalWidth = needed;
-          fitCount++;
-        } else {
-          break;
-        }
-      }
-
-      const nextFit = Math.max(1, fitCount);
-      setVisibleTagCount(prev => prev === nextFit ? prev : nextFit);
-    };
-
-    // Defer measurement via rAF so initial mount does not cause layout thrashing
-    const rafId = requestAnimationFrame(computeFit);
-    const unobserve = observeElementResize(container, computeFit);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      unobserve();
-    };
-  }, [displayTags, item.published_file_id, cardSize, tagPathMap]);
+  const {
+    visibleTagCount,
+    showTagsPopover,
+    handleTagsMouseEnter,
+    handleTagsMouseLeave
+  } = useDynamicTagFit({
+    displayTags,
+    tagPathMap,
+    cardSize,
+    defaultFit,
+    containerRef: tagsContainerRef,
+    rootRef: cardRef
+  });
 
   // Determine card background based on active selection states
   let cardBgClass = 'bg-[#141b23] hover:bg-[#1a232e]';
@@ -188,12 +120,21 @@ export const ItemCard = React.memo(function ItemCard({
 
   return (
     <div
+      ref={cardRef}
       onClick={(e) => onItemClick(e, item, index)}
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onOpenDetail(item);
       }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (onContextMenu) {
+          onContextMenu(e, item);
+        }
+      }}
+      id={`mod-card-${item.published_file_id}`}
+      data-item-id={item.published_file_id}
       data-view-item="card"
       className={`group relative rounded-lg border transition duration-150 cursor-pointer flex flex-col justify-between select-none ${
         showTagsPopover ? 'z-30' : ''
@@ -224,85 +165,22 @@ export const ItemCard = React.memo(function ItemCard({
         {/* Top Image */}
         <div className="relative aspect-video w-full bg-[#101822] overflow-hidden border-b border-[#233547] rounded-t-lg">
         {/* Favorite Star in top left corner */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (onToggleFavorite) {
-              onToggleFavorite(item.published_file_id);
-            }
-          }}
-          title={item.is_favorited ? 'Видалити з обраного' : 'Додати в обране'}
-          className={`absolute top-2 left-2 z-10 p-1.5 rounded-md backdrop-blur-xs transition shadow cursor-pointer ${
-            item.is_favorited
-              ? 'bg-[#101822]/90 text-[#f6be3c] border border-[#f6be3c]/50 hover:bg-black/90'
-              : 'bg-black/60 text-gray-400 border border-white/10 hover:text-white hover:bg-black/80'
-          }`}
-        >
-          <Star
-            className={`w-4 h-4 transition ${
-              item.is_favorited ? 'fill-[#f6be3c] text-[#f6be3c] scale-105' : ''
-            }`}
-          />
-        </button>
+        <FavoriteStar
+          isFavorited={item.is_favorited}
+          onToggle={onToggleFavorite}
+          itemId={item.published_file_id}
+          size="md"
+        />
 
         {/* Pending Planned Action Badge & Status badges in top right corner */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-auto">
-          {pendingAction && (
-            <div
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onRemovePendingAction) {
-                  onRemovePendingAction(item.published_file_id);
-                }
-              }}
-              title={`Заплановано: ${
-                pendingAction === 'disable'
-                  ? 'Вимкнути'
-                  : pendingAction === 'enable'
-                  ? 'Увімкнути'
-                  : pendingAction === 'unsubscribe'
-                  ? 'Відписатися'
-                  : 'Підписатися'
-              }. Натисніть, щоб скасувати`}
-              className={`p-1 px-1.5 rounded-md backdrop-blur-xs transition shadow flex items-center gap-1 cursor-pointer group/badge ${
-                pendingAction === 'disable'
-                  ? 'bg-[#2b190d]/95 text-[#f49e42] border border-[#f49e42] hover:bg-[#3d2313]'
-                  : pendingAction === 'enable'
-                  ? 'bg-[#14281a]/95 text-[#a4d053] border border-[#a4d053] hover:bg-[#1d3d27]'
-                  : pendingAction === 'unsubscribe'
-                  ? 'bg-[#2b1014]/95 text-[#ff6b6b] border border-[#ff6b6b] hover:bg-[#40181e]'
-                  : 'bg-[#102030]/95 text-[#66c0f4] border border-[#66c0f4] hover:bg-[#163047]'
-              }`}
-            >
-              {pendingAction === 'disable' && <PowerOff className="w-3.5 h-3.5" />}
-              {pendingAction === 'enable' && <Power className="w-3.5 h-3.5" />}
-              {pendingAction === 'unsubscribe' && <Trash2 className="w-3.5 h-3.5" />}
-              {pendingAction === 'subscribe' && <CheckCircle2 className="w-3.5 h-3.5" />}
-              <span className="text-[10px] font-bold">План</span>
-              <X className="w-3 h-3 opacity-60 group-hover/badge:opacity-100" />
-            </div>
-          )}
-
-          {isDisabled && (
-            <div
-              title="Відключено"
-              className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#1c140c]/90 text-[#f49e42] border border-[#f49e42]/60 flex items-center justify-center"
-            >
-              <PowerOff className="w-3.5 h-3.5" />
-            </div>
-          )}
-          {isUnsubscribed && (
-            <div
-              title="Не підписаний"
-              className="p-1.5 rounded-md backdrop-blur-xs transition shadow bg-[#201014]/90 text-[#ff6b6b] border border-[#ff6b6b]/60 flex items-center justify-center"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </div>
-          )}
-        </div>
+        <ItemStatusBadges
+          itemId={item.published_file_id}
+          pendingAction={pendingAction}
+          onRemovePendingAction={onRemovePendingAction}
+          isDisabled={isDisabled}
+          isUnsubscribed={isUnsubscribed}
+          size="md"
+        />
 
         {/* Preview image */}
         <img
@@ -322,12 +200,14 @@ export const ItemCard = React.memo(function ItemCard({
             filter: isUnsubscribed ? 'grayscale(100%)' : undefined
           }}
           loading="lazy"
+          decoding="async"
         />
       </div>
 
       {/* Item Body */}
-      <div className={`@container ${cardSize === 3 ? 'p-3.5 sm:p-4' : 'p-3'} flex-1 flex flex-col justify-between`}>
-        <div>
+      <div className={`@container ${cardSize === 3 ? 'p-3.5 sm:p-4' : 'p-3'} flex-1 flex flex-col`}>
+        {/* Upper Text Content (Title, Meta, Description) - takes available space */}
+        <div className="flex-1 flex flex-col min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h3
               className={`${cardSize === 3 ? 'text-base font-bold' : 'text-sm font-semibold'} text-white line-clamp-2 leading-tight group-hover:text-[#66c0f4] transition`}
@@ -344,9 +224,9 @@ export const ItemCard = React.memo(function ItemCard({
                 {authorName && (
                   <span
                     className="truncate text-[11.5px] sm:text-xs text-[#8f98a0] min-w-0 flex items-center max-w-[170px]"
-                    title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                    title={item.creator ? `${t('item.author', { name: authorName })} (SteamID: ${item.creator})` : t('item.author', { name: authorName })}
                   >
-                    <span className="text-[#657484] mr-1 shrink-0">автор:</span>
+                    <span className="text-[#657484] mr-1 shrink-0">{t('item.authorLabel')}</span>
                     <span className="text-gray-300 font-medium truncate">{authorName}</span>
                   </span>
                 )}
@@ -356,7 +236,7 @@ export const ItemCard = React.memo(function ItemCard({
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   className="hover:text-[#66c0f4] hover:border-[#66c0f4]/50 items-center gap-1 font-mono text-[10.5px] text-[#8f98a0] bg-[#101822] hover:bg-[#182535] px-1.5 py-0.5 rounded border border-[#233547] transition shrink-0 whitespace-nowrap inline-flex"
-                  title="Відкрити сторінку мода в Steam Workshop"
+                  title={t('item.openSteamPage')}
                 >
                   ID: {item.published_file_id}
                   <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -370,9 +250,9 @@ export const ItemCard = React.memo(function ItemCard({
                     ? 'bg-[#14281a] text-[#a4d053] border-[#a4d053]/40'
                     : 'bg-[#2a1c10] text-[#f49e42] border-[#f49e42]/40'
                 }`}
-                title={item.is_sorted ? 'Організація: Відсортовано' : 'Організація: Не відсортовано'}
+                title={item.is_sorted ? `${t('detail.organization')}: ${t('detail.sorted')}` : `${t('detail.organization')}: ${t('detail.unsorted')}`}
               >
-                {item.is_sorted ? 'Відсортовано' : 'Не відсортовано'}
+                {item.is_sorted ? t('detail.sorted') : t('detail.unsorted')}
               </span>
             </div>
           ) : (
@@ -380,9 +260,9 @@ export const ItemCard = React.memo(function ItemCard({
               {authorName ? (
                 <span
                   className="truncate text-[11px] text-[#8f98a0] min-w-0 flex items-center"
-                  title={item.creator ? `Автор: ${authorName} (SteamID: ${item.creator})` : `Автор: ${authorName}`}
+                  title={item.creator ? `${t('detail.author')} ${authorName} (SteamID: ${item.creator})` : `${t('detail.author')} ${authorName}`}
                 >
-                  <span className="text-[#657484] mr-1 shrink-0">автор:</span>
+                  <span className="text-[#657484] mr-1 shrink-0">{t('detail.author').toLowerCase()}</span>
                   <span className="text-gray-300 font-medium truncate">{authorName}</span>
                 </span>
               ) : (
@@ -394,7 +274,7 @@ export const ItemCard = React.memo(function ItemCard({
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="hover:text-[#66c0f4] flex items-center gap-1 text-[11px] shrink-0"
-                title="Відкрити в Steam Workshop"
+                title={t('item.openSteam')}
               >
                 Steam <ExternalLink className="w-3 h-3" />
               </a>
@@ -417,19 +297,21 @@ export const ItemCard = React.memo(function ItemCard({
               </p>
             </div>
           )}
+        </div>
 
-          {/* Unified Tags: text-xs matching left column, fills entire width, remainder badge on overflow */}
-          {displayTags.length > 0 && (
-            <div
-              className={`relative ${cardSize === 3 ? 'mt-3' : 'mt-2.5'} min-w-0`}
-              onMouseEnter={handleTagsMouseEnter}
-              onMouseLeave={handleTagsMouseLeave}
-            >
+        {/* Unified Tags: text-xs matching left column, fills entire width, remainder badge on overflow */}
+        {displayTags.length > 0 && (
+          <div
+            className={`relative ${cardSize === 3 ? 'mt-3' : 'mt-2.5'} min-w-0 shrink-0`}
+            onMouseEnter={handleTagsMouseEnter}
+            onMouseLeave={handleTagsMouseLeave}
+          >
               <div ref={tagsContainerRef} className={`flex items-center gap-1 w-full overflow-hidden ${showTagsPopover ? 'invisible' : ''}`}>
                 {displayTags.slice(0, visibleTagCount).map(({ tag, type }, idx) => {
                   const isUser = type === 'user';
                   const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
-                  const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+                  const displayLabel = tTag(getTagDisplayPath(tag, type, tagPathMap));
+                  const fullPath = tTag(getTagDisplayPath(tag, type, tagFullPathMap));
                   
                   let pillStyle = '';
                   if (isActive) {
@@ -456,7 +338,7 @@ export const ItemCard = React.memo(function ItemCard({
                         else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
                       }}
                       className={`text-xs whitespace-nowrap leading-tight transition select-none truncate shrink-0 cursor-pointer hover:opacity-90 ${maxTagWidth} ${pillStyle}`}
-                      title={`Фільтрувати за тегом: ${displayLabel}`}
+                      title={fullPath}
                     >
                       {displayLabel}
                     </span>
@@ -465,7 +347,7 @@ export const ItemCard = React.memo(function ItemCard({
                 {displayTags.length > visibleTagCount && (
                   <span
                     className="text-[10.5px] text-gray-400 font-mono font-medium self-center shrink-0 whitespace-nowrap px-1 py-0.5 bg-[#17222f] rounded border border-[#233547] cursor-pointer hover:text-white hover:border-[#66c0f4]/60 transition"
-                    title={`Ще ${displayTags.length - visibleTagCount} прихованих тегів (наведіть курсор для перегляду)`}
+                    title={`+${displayTags.length - visibleTagCount}`}
                   >
                     +{displayTags.length - visibleTagCount}
                   </span>
@@ -487,7 +369,8 @@ export const ItemCard = React.memo(function ItemCard({
                     {displayTags.map(({ tag, type }, idx) => {
                       const isUser = type === 'user';
                       const isActive = isUser ? selectedUserTags.has(tag) : selectedSteamTags.has(tag);
-                      const displayLabel = getTagDisplayPath(tag, type, tagPathMap);
+                      const displayLabel = tTag(getTagDisplayPath(tag, type, tagPathMap));
+                      const fullPath = tTag(getTagDisplayPath(tag, type, tagFullPathMap));
                       let pillStyle = '';
                       if (isActive) {
                         pillStyle = isUser
@@ -509,7 +392,7 @@ export const ItemCard = React.memo(function ItemCard({
                             else if (!isUser && onToggleTag) onToggleTag(tag, isCtrl);
                           }}
                           className={`text-xs whitespace-nowrap leading-tight transition select-none cursor-pointer ${pillStyle}`}
-                          title={`Фільтрувати за тегом: ${displayLabel}`}
+                          title={fullPath}
                         >
                           {displayLabel}
                         </span>
@@ -520,15 +403,14 @@ export const ItemCard = React.memo(function ItemCard({
               )}
             </div>
           )}
-        </div>
 
         {/* Footer info: updated date, mod size, created date (L mode), and status */}
-        <div className={`${cardSize === 3 ? 'mt-3.5 pt-2.5' : 'mt-3 pt-2'} border-t border-[#233547]/60 flex items-center justify-between gap-1 text-[11px] text-[#758494] min-w-0`}>
+        <div className={`${cardSize === 3 ? 'mt-3.5 pt-2.5' : 'mt-3 pt-2'} border-t border-[#233547]/60 flex items-center justify-between gap-1 text-[11px] text-[#758494] min-w-0 shrink-0`}>
           <div className="flex items-center gap-2 font-mono text-[10.5px] min-w-0">
             {/* Local size badge: hidden if width < 130px (hiding priority before author) */}
             <div
               className="hidden @min-[130px]:flex items-center gap-1 text-[#a4d053] shrink-0"
-              title={`Розмір: ${formatBytes(item.local_size_bytes || item.api_file_size)}`}
+              title={`${t('detail.localSize')} ${formatBytes(item.local_size_bytes || item.api_file_size)}`}
             >
               <HardDrive className="w-3 h-3 text-[#a4d053] shrink-0" />
               <span>{formatBytes(item.local_size_bytes || item.api_file_size)}</span>
@@ -537,7 +419,7 @@ export const ItemCard = React.memo(function ItemCard({
             {/* Date badge: drops first if container < 210px */}
             <div
               className="hidden @min-[210px]:flex items-center gap-1 text-[#758494] shrink-0"
-              title="Дата оновлення: dd.mm.yy"
+              title={`${t('detail.updatedAt')} ${formatDate(item.time_updated || item.local_mtime)}`}
             >
               <Calendar className="w-3 h-3 text-[#66c0f4] shrink-0" />
               <span>{formatDate(item.time_updated || item.local_mtime)}</span>
@@ -547,7 +429,7 @@ export const ItemCard = React.memo(function ItemCard({
             {cardSize === 3 && item.time_created && (
               <div
                 className="hidden @min-[360px]:flex items-center gap-1 text-[#758494] shrink-0"
-                title="Дата створення: dd.mm.yy"
+                title={`${t('detail.createdAt')} ${formatDate(item.time_created)}`}
               >
                 <Clock className="w-3 h-3 text-gray-500 shrink-0" />
                 <span>{formatDate(item.time_created)}</span>
@@ -564,7 +446,7 @@ export const ItemCard = React.memo(function ItemCard({
                 ? 'text-[#f49e42]'
                 : 'text-[#a4d053]'
             }`}
-            title={`Статус: ${isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}`}
+            title={`${t('detail.status')}: ${isUnsubscribed ? t('detail.statusUnsubscribed') : isDisabled ? t('detail.statusDisabled') : t('detail.statusActive')}`}
           >
             {isUnsubscribed ? (
               <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -573,7 +455,7 @@ export const ItemCard = React.memo(function ItemCard({
             ) : (
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
             )}
-            <span>{isUnsubscribed ? 'Видалений' : isDisabled ? 'Відключений' : 'Активний'}</span>
+            <span>{isUnsubscribed ? t('detail.statusUnsubscribed') : isDisabled ? t('detail.statusDisabled') : t('detail.statusActive')}</span>
           </div>
         </div>
 

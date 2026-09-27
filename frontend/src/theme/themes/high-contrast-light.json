@@ -1,0 +1,81 @@
+{
+  "id": "high-contrast-light",
+  "nameKey": "theme.highContrastLight",
+  "name": "High Contrast Light",
+  "isDark": false,
+  "isHighContrast": true,
+  "colors": {
+    "bodyBg": "#ffffff",
+    "canvasBg": "#ffffff",
+    "surfaceHeader": "#ffffff",
+    "cardPrimary": "#ffffff",
+    "cardSecondary": "#ffffff",
+    "interactive": "#ffffff",
+    "selectedCardBg": "#ffffff",
+    "borderColor": "#000000",
+    "textPrimary": "#000000",
+    "textSecondary": "#000000",
+    "textMuted": "#000000",
+    "textAccent": "#003399",
+    "scrollbarTrack": "#ffffff",
+    "scrollbarThumb": "#000000",
+    "scrollbarThumbHover": "#333333",
+    "photoOverlayBg": "#ffffff",
+    "photoOverlayText": "#000000",
+    "photoOverlayBorder": "#000000",
+    "photoOverlayHoverBg": "#f0f0f0"
+  },
+  "buttons": {
+    "primary": {
+      "bg": "#ffffff",
+      "text": "#000000",
+      "border": "#000000"
+    },
+    "secondary": {
+      "bg": "#ffffff",
+      "text": "#000000",
+      "border": "#000000"
+    },
+    "disabled": {
+      "bg": "#ffffff",
+      "text": "#888888",
+      "border": "#888888"
+    },
+    "activeTab": {
+      "bg": "#ffffff",
+      "text": "#000000",
+      "border": "#000000"
+    },
+    "blue": {
+      "bg": "#ffffff",
+      "text": "#003399",
+      "border": "#000000"
+    },
+    "green": {
+      "bg": "#ffffff",
+      "text": "#006600",
+      "border": "#000000"
+    },
+    "orange": {
+      "bg": "#ffffff",
+      "text": "#994400",
+      "border": "#000000"
+    },
+    "red": {
+      "bg": "#ffffff",
+      "text": "#cc0000",
+      "border": "#000000"
+    },
+    "purple": {
+      "bg": "#ffffff",
+      "text": "#660099",
+      "border": "#000000"
+    },
+    "yellow": {
+      "bg": "#ffffff",
+      "text": "#665500",
+      "border": "#000000"
+    }
+  },
+  "customCss": "[data-theme=\"high-contrast-light\"] [class*=\"border-\"] { border-width: 1.5px !important; border-color: #000000 !important; }\n[data-theme=\"high-contrast-light\"] *:focus-visible { outline: 3px solid #000000 !important; outline-offset: 2px !important; }"
+}

@@ -12,20 +12,13 @@ body {
   overflow-x: clip;
 }
 
-/* Custom scrollbar in Steam style */
+/* Custom scrollbar base dimensions */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
-  background: #101822;
-}
 ::-webkit-scrollbar-thumb {
-  background: #2a475e;
   border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #385d7b;
 }
 
 /* Sticky sidebar that sticks to top-2 and dynamically occupies full height when header scrolls out */
@@ -43,4 +36,25 @@ body.is-resizing * {
 body.is-resizing main {
   pointer-events: none !important;
 }
+
+/* Accessible focus ring for keyboard navigation */
+.high-contrast *:focus-visible,
+[data-theme^="high-contrast"] *:focus-visible {
+  outline: 3px solid #ffd600 !important;
+  outline-offset: 2px !important;
+}
+[data-theme="high-contrast-light"] *:focus-visible {
+  outline: 3px solid #000000 !important;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 

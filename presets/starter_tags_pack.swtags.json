@@ -1,0 +1,78 @@
+{
+  "format": "stormworks_tag_pack",
+  "version": 1,
+  "meta": {
+    "title": "Community Starter Pack (English/Global)",
+    "author": "SpaceCossaX",
+    "description": "Standard organized category hierarchy for Stormworks creations, systems, and logic.",
+    "exported_at": "2026-09-27T18:00:00.000000+00:00",
+    "items_count": 0
+  },
+  "tag_structure": [
+    {
+      "id": "cat-aircraft",
+      "type": "tag",
+      "tag": "Aircraft",
+      "tagType": "user",
+      "children": [
+        { "id": "tag-plane", "type": "tag", "tag": "Airplane", "tagType": "user", "children": [] },
+        { "id": "tag-jet", "type": "tag", "tag": "Jet", "tagType": "user", "children": [] },
+        { "id": "tag-seaplane", "type": "tag", "tag": "Seaplane", "tagType": "user", "children": [] },
+        { "id": "tag-vtol", "type": "tag", "tag": "VTOL", "tagType": "user", "children": [] },
+        { "id": "tag-helicopter", "type": "tag", "tag": "Helicopter", "tagType": "steam", "children": [] }
+      ]
+    },
+    {
+      "id": "cat-maritime",
+      "type": "tag",
+      "tag": "Maritime",
+      "tagType": "user",
+      "children": [
+        { "id": "tag-boat", "type": "tag", "tag": "Boat", "tagType": "steam", "children": [] },
+        { "id": "tag-ship", "type": "tag", "tag": "Ship", "tagType": "user", "children": [] },
+        { "id": "tag-submarine", "type": "tag", "tag": "Submarine", "tagType": "steam", "children": [] },
+        { "id": "tag-hovercraft", "type": "tag", "tag": "Hovercraft", "tagType": "user", "children": [] },
+        { "id": "tag-tugboat", "type": "tag", "tag": "Tugboat", "tagType": "user", "children": [] }
+      ]
+    },
+    {
+      "id": "cat-land",
+      "type": "tag",
+      "tag": "Land Vehicles",
+      "tagType": "user",
+      "children": [
+        { "id": "tag-car", "type": "tag", "tag": "Car", "tagType": "steam", "children": [] },
+        { "id": "tag-truck", "type": "tag", "tag": "Truck", "tagType": "user", "children": [] },
+        { "id": "tag-train", "type": "tag", "tag": "Train", "tagType": "steam", "children": [] },
+        { "id": "tag-tank", "type": "tag", "tag": "Tank", "tagType": "user", "children": [] },
+        { "id": "tag-trailer", "type": "tag", "tag": "Trailer", "tagType": "user", "children": [] }
+      ]
+    },
+    {
+      "id": "cat-logic",
+      "type": "tag",
+      "tag": "Logic & Systems",
+      "tagType": "user",
+      "children": [
+        { "id": "tag-microcontroller", "type": "tag", "tag": "Microcontroller", "tagType": "steam", "children": [] },
+        { "id": "tag-autopilot", "type": "tag", "tag": "Autopilot", "tagType": "user", "children": [] },
+        { "id": "tag-radar-sonar", "type": "tag", "tag": "Radar / Sonar", "tagType": "user", "children": [] },
+        { "id": "tag-dashboard", "type": "tag", "tag": "Dashboard / HUD", "tagType": "user", "children": [] },
+        { "id": "tag-engine-ecu", "type": "tag", "tag": "Engine Controller (ECU)", "tagType": "user", "children": [] }
+      ]
+    },
+    {
+      "id": "cat-missions",
+      "type": "tag",
+      "tag": "Missions & Roleplay",
+      "tagType": "user",
+      "children": [
+        { "id": "tag-rescue", "type": "tag", "tag": "Rescue", "tagType": "steam", "children": [] },
+        { "id": "tag-firefighting", "type": "tag", "tag": "Firefighting", "tagType": "user", "children": [] },
+        { "id": "tag-cargo", "type": "tag", "tag": "Cargo", "tagType": "user", "children": [] },
+        { "id": "tag-military", "type": "tag", "tag": "Military / Weapons", "tagType": "user", "children": [] }
+      ]
+    }
+  ],
+  "items": {}
+}

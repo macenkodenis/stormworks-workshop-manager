@@ -1,16 +1,32 @@
 # Dependencies
 node_modules/
 venv/
+backend/venv/
 __pycache__/
 *.pyc
+*.pyo
 
-# Local data / caches
-data/previews/
-data/stormworks_workshop.db*
-backend/*.db*
+# Local database & runtime data
+data/
+*.db
+*.db*
+*.sqlite
+stormworks_workshop.db
+window_state.json
 
-# Build outputs
-backend/static/assets/
-backend/static/index.html
+# Build outputs & packaging
 build/
 dist/
+*.spec.bak
+*.tar.gz
+*.zip
+backend/static/assets/
+backend/static/index.html
+
+# IDE, OS & Agent artifacts
+GEMINI.md
+.agents/
+.vscode/
+.idea/
+.DS_Store
+*.log

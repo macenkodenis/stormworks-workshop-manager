@@ -25,6 +25,7 @@ else:
 
 PREVIEWS_DIR = DATA_DIR / "previews"
 DB_PATH = DATA_DIR / "stormworks_workshop.db"
+BACKUPS_DIR = DATA_DIR / "backups"
 
 # Stormworks AppID
 APP_ID = 573090
@@ -40,4 +41,5 @@ STEAM_API_TIMEOUT_SECONDS = 15.0
 # Ensure data directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,86 @@
+{
+  "id": "midnight",
+  "nameKey": "theme.midnight",
+  "name": "Midnight (OLED)",
+  "isDark": true,
+  "isHighContrast": false,
+  "colors": {
+    "bodyBg": "#000000",
+    "canvasBg": "#000000",
+    "surfaceHeader": "#070a0e",
+    "cardPrimary": "#0d121a",
+    "cardSecondary": "#0a0e14",
+    "interactive": "#101620",
+    "hoverBg": "#131b26",
+    "cardHoverBg": "#121a24",
+    "selectedCardBg": "#0f1c14",
+    "borderColor": "#172230",
+    "textPrimary": "#c7d5e0",
+    "textSecondary": "#8f98a0",
+    "textMuted": "#5a6874",
+    "textAccent": "#66c0f4",
+    "scrollbarTrack": "#05080c",
+    "scrollbarThumb": "#1a2838",
+    "scrollbarThumbHover": "#263c54"
+  },
+  "buttons": {
+    "primary": {
+      "bg": "#1b3248",
+      "text": "#66c0f4",
+      "border": "#274b6e",
+      "hoverBg": "#234260"
+    },
+    "secondary": {
+      "bg": "#0c1219",
+      "text": "#c7d5e0",
+      "border": "#172332",
+      "hoverBg": "#131b26"
+    },
+    "disabled": {
+      "bg": "#080b0f",
+      "text": "#4a5568",
+      "border": "#121820"
+    },
+    "activeTab": {
+      "bg": "#172535",
+      "text": "#66c0f4",
+      "border": "#223c56"
+    },
+    "blue": {
+      "bg": "#0e1c2b",
+      "text": "#66c0f4",
+      "border": "#1c324a",
+      "hoverBg": "#15293d"
+    },
+    "green": {
+      "bg": "#0b1c11",
+      "text": "#4ade80",
+      "border": "#183c22",
+      "hoverBg": "#122c19"
+    },
+    "orange": {
+      "bg": "#1d1309",
+      "text": "#fb923c",
+      "border": "#3a2712",
+      "hoverBg": "#291c0e"
+    },
+    "red": {
+      "bg": "#1d0b0e",
+      "text": "#f87171",
+      "border": "#3d171d",
+      "hoverBg": "#2a1014"
+    },
+    "purple": {
+      "bg": "#160d24",
+      "text": "#c084fc",
+      "border": "#2e1b4a",
+      "hoverBg": "#211436"
+    },
+    "yellow": {
+      "bg": "#1e190b",
+      "text": "#facc15",
+      "border": "#3d3316",
+      "hoverBg": "#2c2410"
+    }
+  }
+}

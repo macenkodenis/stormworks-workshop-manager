@@ -1,0 +1,117 @@
+{
+  "id": "light",
+  "nameKey": "theme.light",
+  "name": "Light",
+  "isDark": false,
+  "isHighContrast": false,
+  "colors": {
+    "bodyBg": "#ebf2f7",
+    "canvasBg": "#ebf2f7",
+    "surfaceHeader": "#f0f6fb",
+    "cardPrimary": "#ffffff",
+    "cardSecondary": "#f4f8fc",
+    "interactive": "#e2edf8",
+    "hoverBg": "#dbe8f5",
+    "cardHoverBg": "#e6f1fb",
+    "selectedCardBg": "#e8f8ed",
+
+    "badgeUnsortedBg": "#fef3c7",
+    "badgeUnsortedText": "#b45309",
+    "badgeUnsortedBorder": "#fcd34d",
+
+    "badgeSortedBg": "#ecfdf5",
+    "badgeSortedText": "#15803d",
+    "badgeSortedBorder": "#86efac",
+
+    "tagOverflowBg": "#dce9f5",
+    "tagOverflowText": "#2b4964",
+    "tagOverflowBorder": "#bad2ea",
+
+    "tagSteamBg": "#edf5fc",
+    "tagSteamText": "#0284c7",
+    "tagSteamBorder": "#7dd3fc",
+
+    "tagUserBg": "#fdf6ea",
+    "tagUserText": "#a15c07",
+    "tagUserBorder": "#fcd34d",
+
+    "tagsPopoverBg": "rgba(255, 255, 255, 0.98)",
+    "tagsPopoverBorder": "#c4d9ed",
+
+    "dividerBg": "#d2e4f4",
+    "borderColor": "#c4d9ed",
+    "textPrimary": "#1e293b",
+    "textSecondary": "#334155",
+    "textMuted": "#5a7184",
+    "textAccent": "#0284c7",
+
+    "scrollbarTrack": "#eaf2f9",
+    "scrollbarThumb": "#bad2ea",
+    "scrollbarThumbHover": "#8bb5dc",
+
+    "photoOverlayBg": "rgba(255, 255, 255, 0.88)",
+    "photoOverlayText": "#1e293b",
+    "photoOverlayBorder": "rgba(196, 217, 237, 0.9)",
+    "photoOverlayHoverBg": "#ffffff"
+  },
+  "buttons": {
+    "primary": {
+      "bg": "#0284c7",
+      "text": "#ffffff",
+      "border": "#0284c7",
+      "hoverBg": "#0369a1"
+    },
+    "secondary": {
+      "bg": "#eaf1f8",
+      "text": "#1e293b",
+      "border": "#c4d9ed",
+      "hoverBg": "#dbe8f5"
+    },
+    "disabled": {
+      "bg": "#edf3f9",
+      "text": "#8da4be",
+      "border": "#d4e3f1"
+    },
+    "activeTab": {
+      "bg": "#d7e8f8",
+      "text": "#0284c7",
+      "border": "#bae6fd"
+    },
+    "blue": {
+      "bg": "#e0f2fe",
+      "text": "#0284c7",
+      "border": "#7dd3fc",
+      "hoverBg": "#bae6fd"
+    },
+    "green": {
+      "bg": "#ecfdf5",
+      "text": "#15803d",
+      "border": "#86efac",
+      "hoverBg": "#d1fae5"
+    },
+    "orange": {
+      "bg": "#fff7ed",
+      "text": "#c2410c",
+      "border": "#fdba74",
+      "hoverBg": "#ffedd5"
+    },
+    "red": {
+      "bg": "#fef2f2",
+      "text": "#b91c1c",
+      "border": "#fca5a5",
+      "hoverBg": "#fee2e2"
+    },
+    "purple": {
+      "bg": "#faf5ff",
+      "text": "#6d28d9",
+      "border": "#d8b4fe",
+      "hoverBg": "#f3e8ff"
+    },
+    "yellow": {
+      "bg": "#fef9c3",
+      "text": "#a16207",
+      "border": "#fde047",
+      "hoverBg": "#fef08a"
+    }
+  }
+}

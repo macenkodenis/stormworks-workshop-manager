@@ -40,12 +40,35 @@ class SteamService:
         return None
 
     @staticmethod
-    def is_steam_running() -> bool:
+    def get_steam_pid() -> Optional[int]:
+        """Finds the main Steam client PID via pidfile or exact process match."""
+        candidates = [
+            Path.home() / ".steam" / "steam.pid",
+            Path.home() / ".local" / "share" / "Steam" / "steam.pid"
+        ]
+        for p in candidates:
+            if p.exists():
+                try:
+                    pid = int(p.read_text().strip())
+                    # Check if process is actually alive
+                    os.kill(pid, 0)
+                    return pid
+                except (ValueError, OSError):
+                    pass
+        # Fallback to exact process name match (avoids matching srt-logger / steamwebhelper args)
         try:
-            res = subprocess.run(["pgrep", "-f", "ubuntu12_32/steam"], capture_output=True)
-            return res.returncode == 0
+            res = subprocess.run(["pgrep", "-x", "steam"], capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip():
+                pids = [int(x) for x in res.stdout.strip().split() if x.isdigit()]
+                if pids:
+                    return pids[0]
         except Exception:
-            return False
+            pass
+        return None
+
+    @staticmethod
+    def is_steam_running() -> bool:
+        return SteamService.get_steam_pid() is not None
 
     @staticmethod
     def is_cef_debugging_active(port: int = DEBUG_PORT) -> bool:
@@ -78,42 +101,73 @@ class SteamService:
     async def restart_steam_with_debugging(port: int = DEBUG_PORT) -> Dict[str, Any]:
         """
         Gracefully shuts down Steam using 'steam -shutdown',
-        waits for termination, and relaunches with '-cef-enable-debugging'.
+        waits for termination, verifies port availability, and relaunches with '-cef-enable-debugging'.
         """
-        # 1. Graceful shutdown
-        try:
-            subprocess.run(["steam", "-shutdown"], capture_output=True, timeout=5)
-        except Exception as e:
-            print(f"Error executing steam -shutdown: {e}")
-
-        # Wait up to 10 seconds for steam process to fully exit
-        for _ in range(20):
-            await asyncio.sleep(0.5)
-            if not SteamService.is_steam_running():
-                break
-
-        # If still running, terminate gracefully with pkill
-        if SteamService.is_steam_running():
+        pid = SteamService.get_steam_pid()
+        if pid is not None:
+            # 1. Graceful shutdown
             try:
-                subprocess.run(["pkill", "-TERM", "-f", "ubuntu12_32/steam"], capture_output=True)
-                await asyncio.sleep(1.0)
-            except Exception:
-                pass
+                subprocess.run(["steam", "-shutdown"], capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"Error executing steam -shutdown: {e}")
 
-        # 2. Relaunch steam with -cef-enable-debugging
+            # Wait up to 12 seconds for steam process to fully exit
+            for _ in range(24):
+                await asyncio.sleep(0.5)
+                if not SteamService.is_steam_running():
+                    break
+
+            # If still running, send SIGTERM to main PID
+            if SteamService.is_steam_running():
+                current_pid = SteamService.get_steam_pid()
+                if current_pid:
+                    try:
+                        os.kill(current_pid, 15)
+                    except OSError:
+                        pass
+                for _ in range(10):
+                    await asyncio.sleep(0.5)
+                    if not SteamService.is_steam_running():
+                        break
+
+            # Settle period for sockets and file locks to release
+            await asyncio.sleep(1.0)
+
+        # 2. Verify port 8080 is not held by another non-steam service
+        import socket
+        port_free = False
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(('127.0.0.1', port))
+                port_free = True
+            except OSError:
+                port_free = False
+
+        if not port_free and not SteamService.is_cef_debugging_active(port):
+            return {
+                "status": "error",
+                "message": f"Порт {port} зайнято іншою програмою. Будь ласка, звільніть порт {port}."
+            }
+
+        # 3. Relaunch steam with -cef-enable-debugging
         try:
+            import shutil
+            steam_binary = shutil.which("steam") or "/usr/bin/steam"
+            env = os.environ.copy()
             subprocess.Popen(
-                ["steam", "-cef-enable-debugging"],
+                [steam_binary, "-cef-enable-debugging"],
                 start_new_session=True,
+                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
         except Exception as e:
             return {"status": "error", "message": f"Failed to launch steam: {e}"}
 
-        # 3. Wait for CEF port to become available
+        # 4. Wait for CEF port to become available
         ready = False
-        for _ in range(25):
+        for _ in range(30):
             await asyncio.sleep(0.6)
             if SteamService.is_cef_debugging_active(port):
                 ready = True
@@ -124,7 +178,7 @@ class SteamService:
             "is_running": SteamService.is_steam_running(),
             "cef_debugging": ready,
             "debug_port": port,
-            "message": "Steam restarted with debugging enabled!" if ready else "Steam launched, waiting for CEF port..."
+            "message": "Steam успішно перезапущено з прапорцем відлагодження!" if ready else "Steam запущено, очікування порту CEF..."
         }
 
     @staticmethod
@@ -439,15 +493,13 @@ class SteamService:
                         except Exception as e:
                             print(f"Failed to remove item folder {item_folder}: {e}")
 
-        # Update local SQLite database
+        # Update local SQLite database (preserve existing is_disabled flag)
         conn = get_connection()
         cur = conn.cursor()
         unsub_int = 0 if is_subscribed else 1
-        # When unsubscribed, also mark as disabled locally
-        disabled_int = 0 if is_subscribed else 1
         cur.executemany(
-            "UPDATE workshop_items SET is_unsubscribed = ?, is_disabled = ? WHERE published_file_id = ?",
-            [(unsub_int, disabled_int, str(i)) for i in item_ids]
+            "UPDATE workshop_items SET is_unsubscribed = ? WHERE published_file_id = ?",
+            [(unsub_int, str(i)) for i in item_ids]
         )
         conn.commit()
         conn.close()

@@ -38,3 +38,18 @@ def find_steam_libraries(steam_root: Optional[Path] = None) -> List[Path]:
             print(f"Warning: Failed to parse libraryfolders.vdf: {e}")
 
     return libraries
+
+def find_subscriptions_vdf(app_id: Optional[int] = None, steam_root: Optional[Path] = None) -> Optional[Path]:
+    from ..config import APP_ID
+    target_app_id = app_id or APP_ID
+    if not steam_root:
+        steam_root = find_steam_root()
+    if not steam_root:
+        return None
+    userdata = steam_root / "userdata"
+    if not userdata.exists():
+        return None
+    matches = list(userdata.glob(f"*/ugc/{target_app_id}_subscriptions.vdf"))
+    if matches:
+        return matches[0]
+    return None

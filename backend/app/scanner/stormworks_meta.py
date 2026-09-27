@@ -48,10 +48,26 @@ def analyze_local_item(item_dir: Path) -> Dict[str, Any]:
         print(f"Error inspecting {item_dir}: {e}")
 
     detected_type = "Unknown"
+    local_title: Optional[str] = None
+    local_author: Optional[str] = None
+    local_description: Optional[str] = None
+
     if has_vehicle_xml:
         detected_type = "Vehicle"
     elif has_mod_xml:
         detected_type = "Mod/Component"
+        mod_file = item_dir / "mod.xml"
+        if mod_file.exists():
+            try:
+                import xml.etree.ElementTree as ET
+                tree = ET.parse(str(mod_file))
+                root = tree.getroot()
+                if root.tag == "mod":
+                    local_title = root.attrib.get("name") or None
+                    local_author = root.attrib.get("author") or None
+                    local_description = root.attrib.get("desc") or None
+            except Exception:
+                pass
     elif has_microcontroller:
         detected_type = "Microcontroller"
     elif has_mission:
@@ -62,5 +78,8 @@ def analyze_local_item(item_dir: Path) -> Dict[str, Any]:
         "local_mtime": latest_mtime,
         "detected_type": detected_type,
         "local_preview_file": local_preview_file,
+        "local_title": local_title,
+        "local_author": local_author,
+        "local_description": local_description,
         "file_count": len(files_list)
     }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MousePointerClick } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelection = false }) {
+  const { t } = useI18n();
   const overlayRef = useRef(null);
   const [rightPos, setRightPos] = useState(null);
   const [isHidden, setIsHidden] = useState(false);
@@ -91,7 +93,7 @@ export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelecti
         <div className="p-1 rounded-md bg-[#162231] border border-[#2c4056]">
           <MousePointerClick className="w-3.5 h-3.5 text-[#66c0f4]" />
         </div>
-        <span className="tracking-wide">Підказки по керуванню</span>
+        <span className="tracking-wide">{t('hints.title')}</span>
       </div>
 
       {/* Shortcuts list */}
@@ -99,25 +101,25 @@ export function ControlsHintOverlay({ mainRef, leftWidth, rightWidth, hasSelecti
         <li className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#66c0f4] shrink-0" />
           <span>
-            <strong className="text-[#66c0f4] font-semibold">Клік:</strong> виділити / зняти (синя)
+            <strong className="text-[#66c0f4] font-semibold">{t('hints.click')}</strong> {t('hints.clickDesc')}
           </span>
         </li>
         <li className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#a4d053] shrink-0" />
           <span>
-            <strong className="text-[#a4d053] font-semibold">Shift+клік:</strong> діапазон (зелена)
+            <strong className="text-[#a4d053] font-semibold">{t('hints.shiftClick')}</strong> {t('hints.shiftClickDesc')}
           </span>
         </li>
         <li className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
           <span>
-            <strong className="text-white font-semibold">Ctrl+клік:</strong> додати/зняти в списку
+            <strong className="text-white font-semibold">{t('hints.ctrlClick')}</strong> {t('hints.ctrlClickDesc')}
           </span>
         </li>
         <li className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
           <span>
-            <strong className="text-white font-semibold">Подвійний клік:</strong> повна картка
+            <strong className="text-white font-semibold">{t('hints.doubleClick')}</strong> {t('hints.doubleClickDesc')}
           </span>
         </li>
       </ul>

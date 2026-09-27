@@ -1,0 +1,74 @@
+{
+  "id": "high-contrast-dark",
+  "nameKey": "theme.highContrastDark",
+  "name": "High Contrast Dark",
+  "isDark": true,
+  "isHighContrast": true,
+  "colors": {
+    "bodyBg": "#000000",
+    "canvasBg": "#000000",
+    "surfaceHeader": "#000000",
+    "cardPrimary": "#000000",
+    "cardSecondary": "#000000",
+    "interactive": "#000000",
+    "selectedCardBg": "#000000",
+    "borderColor": "#00f0ff",
+    "textPrimary": "#ffffff",
+    "textSecondary": "#ffffff",
+    "textMuted": "#ffffff",
+    "textAccent": "#00f0ff"
+  },
+  "buttons": {
+    "primary": {
+      "bg": "#000000",
+      "text": "#00f0ff",
+      "border": "#00f0ff"
+    },
+    "secondary": {
+      "bg": "#000000",
+      "text": "#ffffff",
+      "border": "#00f0ff"
+    },
+    "disabled": {
+      "bg": "#000000",
+      "text": "#777777",
+      "border": "#555555"
+    },
+    "activeTab": {
+      "bg": "#000000",
+      "text": "#00f0ff",
+      "border": "#00f0ff"
+    },
+    "blue": {
+      "bg": "#000000",
+      "text": "#00f0ff",
+      "border": "#00f0ff"
+    },
+    "green": {
+      "bg": "#000000",
+      "text": "#00ff66",
+      "border": "#00ff66"
+    },
+    "orange": {
+      "bg": "#000000",
+      "text": "#ffaa00",
+      "border": "#ffaa00"
+    },
+    "red": {
+      "bg": "#000000",
+      "text": "#ff3333",
+      "border": "#ff3333"
+    },
+    "purple": {
+      "bg": "#000000",
+      "text": "#cc66ff",
+      "border": "#cc66ff"
+    },
+    "yellow": {
+      "bg": "#000000",
+      "text": "#ffd600",
+      "border": "#ffd600"
+    }
+  },
+  "customCss": "[data-theme=\"high-contrast-dark\"] [class*=\"border-\"] { border-width: 1.5px !important; border-color: #00f0ff !important; }\n[data-theme=\"high-contrast-dark\"] *:focus-visible { outline: 3px solid #ffd600 !important; outline-offset: 2px !important; }"
+}
