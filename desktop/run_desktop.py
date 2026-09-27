@@ -195,6 +195,21 @@ def run_server_mode(host: str, port: int, open_browser: bool = True):
         print("\n[*] Stopping server...")
     print("[✓] Server stopped cleanly.")
 
+def has_gtk_webkit() -> bool:
+    try:
+        import gi
+        gi.require_version('WebKit2', '4.1')
+        from gi.repository import WebKit2
+        return True
+    except Exception:
+        try:
+            import gi
+            gi.require_version('WebKit2', '4.0')
+            from gi.repository import WebKit2
+            return True
+        except Exception:
+            return False
+
 def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
     """Run native desktop GUI window with adaptive engine selection."""
     try:
@@ -213,17 +228,26 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
     elif requested_gui in ("edge", "edgechromium"):
         gui_engine = "edgechromium"
     elif requested_gui == "gtk":
+        if not has_gtk_webkit():
+            print("[!] Note: System WebKitGTK (webkit2gtk) was not detected on this system.")
+            print("[*] Falling back to lightweight browser server mode...")
+            run_server_mode(host, port, open_browser=True)
+            return
         gui_engine = "gtk"
     elif requested_gui == "auto":
         if sys.platform.startswith("win"):
             # Windows 10/11: prefer Edge WebView2 (lightweight, native)
             gui_engine = "edgechromium"
         elif sys.platform.startswith("linux"):
-            # Linux: prefer Qt if available, fallback to gtk or None
             if has_qt:
                 gui_engine = "qt"
-            else:
+            elif has_gtk_webkit():
                 gui_engine = "gtk"
+            else:
+                print("[!] Note: Neither PyQt6 nor WebKitGTK found for native window.")
+                print("[*] Automatically running in browser server mode...")
+                run_server_mode(host, port, open_browser=True)
+                return
 
     print("=" * 60)
     print("  Stormworks Workshop Manager — Desktop Application")

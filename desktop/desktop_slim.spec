@@ -71,6 +71,9 @@ a = Analysis(
     noarchive=False,
 )
 
+# Filter out bulky Linux system desktop icon sets (keeps it truly slim)
+a.datas = [d for d in a.datas if not (d[0].startswith('share/icons') or d[0].startswith('share/themes'))]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
