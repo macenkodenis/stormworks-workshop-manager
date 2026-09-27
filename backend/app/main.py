@@ -27,9 +27,11 @@ from .scanner.ingame_folders import (
     find_save_xml_path,
     is_game_running
 )
+from .updater import router as updater_router
 
 app = FastAPI(title="Stormworks Workshop Manager API", version="0.1.0-beta.1")
 app.include_router(data_sync_router)
+app.include_router(updater_router)
 
 # Enable CORS for local development
 app.add_middleware(

@@ -7,6 +7,7 @@ import { ItemRow } from './components/ItemRow';
 import { ActionPlanModal } from './components/ActionPlanModal';
 import { ItemDetailModal } from './components/ItemDetailModal';
 import { SettingsModal } from './components/SettingsModal';
+import { UpdateModal } from './components/UpdateModal';
 import { ImportTagsModal } from './components/ImportTagsModal';
 import { CollectionsSidebar } from './components/CollectionsSidebar';
 import { FoldersSidebar } from './components/FoldersSidebar';
@@ -469,6 +470,7 @@ function normalizeCardSize(val) {
   const [isClassifierRulesOpen, setIsClassifierRulesOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [updateModalData, setUpdateModalData] = useState(null);
 
   const handleOpenDetail = useCallback((it) => {
     setDetailItem(it);
@@ -730,6 +732,26 @@ function normalizeCardSize(val) {
 
   useEffect(() => {
     loadData();
+
+    // Silent background update check on startup
+    const checkUpdatesOnStart = async () => {
+      try {
+        const lastCheck = localStorage.getItem('sw_last_update_check');
+        const now = Date.now();
+        // Check at most once every 6 hours
+        if (lastCheck && now - Number(lastCheck) < 6 * 3600 * 1000) {
+          return;
+        }
+        localStorage.setItem('sw_last_update_check', String(now));
+        const res = await fetch('/api/updater/check').then(r => r.json());
+        if (res && res.has_update) {
+          setUpdateModalData(res);
+        }
+      } catch (_) {}
+    };
+
+    const timer = setTimeout(checkUpdatesOnStart, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Collections Handlers
@@ -3243,7 +3265,21 @@ function normalizeCardSize(val) {
         ingameFoldersStatus={inGameFoldersData}
         foldersMode={foldersMode}
         onSetFoldersMode={handleSetFoldersMode}
+        onOpenUpdateModal={(data) => {
+          setIsSettingsOpen(false);
+          setUpdateModalData(data);
+        }}
       />
+
+      {/* Software Update Modal */}
+      {updateModalData && (
+        <UpdateModal
+          isOpen={Boolean(updateModalData)}
+          onClose={() => setUpdateModalData(null)}
+          updateData={updateModalData}
+          onDone={() => setUpdateModalData(null)}
+        />
+      )}
 
       {/* Classifier Rules & Synonyms Modal */}
       {isClassifierRulesOpen && (

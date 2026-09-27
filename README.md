@@ -1,4 +1,4 @@
-# 🌊 Stormworks Steam Workshop Manager
+# Stormworks Steam Workshop Manager
 
 [![Release](https://img.shields.io/github/v/release/macenkodenis/stormworks-workshop-manager?include_prereleases&color=0284c7&style=flat-square)](https://github.com/macenkodenis/stormworks-workshop-manager/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0)
@@ -6,73 +6,124 @@
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?style=flat-square&logo=react)](https://react.dev)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-brightgreen?style=flat-square)]()
 
-A fast, feature-rich desktop and web manager for your subscribed **Stormworks: Build and Rescue** Steam Workshop creations. Seamlessly organize, tag, filter, synchronize with in-game vehicle folders, and browse workshop creations offline with cached high-resolution screenshots and metadata.
+A desktop and web utility for managing subscribed Steam Workshop creations for **Stormworks: Build and Rescue**. Supports offline metadata and image caching, hierarchical tagging with rule-based auto-classification, vehicle folder synchronization, and collection imports.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
-### Main Interface & Workshop Grid
-![Main Interface](docs/screenshots/main_window.svg)
+### Workshop Catalog & Grid
+![Main Interface](docs/screenshots/main_window.png)
 
-### Auto-Classifier Rules & Tag Hierarchy
-![Tag Classifier](docs/screenshots/tag_classifier.svg)
+### Tag Management & Batch Operations
+![Tag Editor Sidebar](docs/screenshots/tag_editor_sidebar.png)
 
----
+### Mod Action Planner & Batch Execution
+![Action Plan](docs/screenshots/action_plan.png)
 
-## ✨ Key Features
+### Item Details & Gallery Viewer
+![Item Detail Modal](docs/screenshots/item_detail.png)
 
-* 🚀 **Zero-Configuration Steam Discovery**:
-  * Automatically finds your Steam installation and subscribed Stormworks items (`app_id: 573090`).
-  * Full support for **Linux (Native, SteamOS, Flatpak, Snap/Proton)** and **Windows**.
-* 🖼️ **Offline Metadata & Gallery Cache**:
-  * Local SQLite storage for instant sub-millisecond search and browsing.
-  * Caches vehicle descriptions, author details, original thumbnail previews, and full screenshot galleries directly from Steam Community.
-* 📁 **In-Game Vehicle Folders Sync**:
-  * Organize creations into native Stormworks folders directly from the app.
-  * Safely edits `save.xml` with active game process detection to avoid file conflicts or save corruption.
-* 🏷️ **Hierarchical Tags & Smart Auto-Classifier**:
-  * Create custom tags, categories, and nested sub-tags.
-  * Define rule-based conditions (keywords in title/description, original Steam tags) to automatically classify hundreds of vehicles in seconds.
-* 📦 **Community Presets & Steam Collections**:
-  * Import complete Steam Workshop Collections via URL or ID.
-  * Export and import modular `.swtags` tag packs. Comes with a ready-to-use [Community Starter Pack](presets/starter_tags_pack.swtags.json).
-* 🖥️ **Dual Mode Architecture**:
-  * **Desktop Standalone**: Native PyWebView + QtWebEngine desktop application.
-  * **Web Application**: Lightweight FastAPI backend with a responsive React 19 + Tailwind CSS frontend accessible from any browser.
+### Collections & In-Game Vehicle Folders
+| Workshop Collections | In-Game Craft Folders (`save.xml`) |
+| :---: | :---: |
+| ![Collections](docs/screenshots/collections.png) | ![Folders](docs/screenshots/folders.png) |
+
+### Settings & Software Updates
+![Settings Modal](docs/screenshots/settings.png)
 
 ---
 
-## 📦 Editions & Downloads
+## Features
 
-We provide 3 distinct editions across Linux and Windows so you can choose the ideal balance of download size, convenience, and rendering performance:
+* **Steam Discovery**: Automatically detects Steam installations, library folders, and subscribed items (`app_id: 573090`) across Linux (Native, SteamOS, Flatpak, Snap, Proton) and Windows.
+* **Offline Metadata & Cache**: Stores vehicle descriptions, author details, preview thumbnails, and full screenshot galleries in a local SQLite database for offline browsing and filtering.
+* **Vehicle Folder Management**: Synchronizes organizational folders directly into in-game vehicle directories (`save.xml`). Includes active game process detection to avoid write conflicts.
+* **Hierarchical Tagging & Auto-Classifier**: User-defined tag tree with an automated rule engine that classifies vehicles based on keywords in titles, descriptions, and Workshop tags.
+* **Collections & Presets**: Imports Steam Workshop Collections by URL or ID. Supports export and import of tag configurations (`.swtags` format).
+* **Architecture**: FastAPI backend with a React 19 / Tailwind CSS interface. Deployable as a native desktop application or as a lightweight server accessible via web browser.
+* **Built-in Update Checker**: Checks for the latest GitHub releases directly from the settings interface with changelog summaries.
 
-| Edition | Linux | Windows | Size (Archive) | Description & Use Case |
+---
+
+## Editions & Distribution
+
+The application is distributed in three editions for Linux and Windows:
+
+| Edition | Linux Package | Windows Package | Archive Size | Runtime Details |
 | :--- | :---: | :---: | :---: | :--- |
-| **🚀 Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~210–230 MB | **Maximum stability & 60+ FPS smoothness.** Bundles its own self-contained Chromium engine (QtWebEngine). Zero system dependencies, works out of the box on any Linux distribution or Windows PC. |
-| **🪶 Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~35–70 MB | **Lightweight desktop app.** Uses your operating system's built-in web engine (Microsoft Edge WebView2 on Windows, WebKitGTK on Linux). Saves storage space and RAM. |
-| **🌐 Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~15–20 MB | **Ultra-light & headless.** Stripped of all desktop GUI libraries. Runs the backend on port `57309` and automatically opens in your default browser (Chrome, Firefox, Brave, etc.). Ideal for laptops, home servers, or running in the background. |
+| **Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~220–240 MB | Bundled QtWebEngine (Chromium). Fully self-contained, no system runtime dependencies. |
+| **Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~20–38 MB | Uses system WebView (Edge WebView2 on Windows, WebKit2GTK 4.1 on Linux). |
+| **Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~18–37 MB | Headless backend only; runs on port `57309` and opens in the system default browser. |
 
-### 🔍 Which edition should I choose?
+### Selection Notes
 
-* **Windows Users**:
-  * **🪶 Slim is highly recommended!** Modern Windows (10/11) includes Edge WebView2 by default, providing full Chromium GPU acceleration, 60 FPS scrolling, and native look with an archive size of only ~35 MB.
-  * Use **🚀 Standalone** if you are on an older Windows install without WebView2, or **🌐 Server** if you prefer managing creations directly in your primary web browser without a separate application window.
+* **Windows**:
+  * **Slim** is recommended for Windows 10/11: it utilizes the built-in Edge WebView2 runtime (Chromium), providing GPU acceleration with a ~21 MB archive size.
+  * **Standalone** is intended for systems without WebView2.
+  * **Server** allows running the service without a native application window.
 
-* **Linux Users**:
-  * **🚀 Standalone is recommended** for the smoothest desktop experience. It guarantees flawless 60 FPS scrolling and rapid image rendering in heavy workshop grids regardless of your desktop environment (Wayland/X11, GNOME, KDE, etc.).
-  * **🌐 Server is the best lightweight choice** (~20 MB download). When started, it opens directly in your everyday browser with full hardware acceleration and native responsiveness.
-  * **🪶 Slim** uses WebKitGTK (`webkit2gtk-4.1`). If WebKitGTK is not installed on your system, it gracefully falls back to opening your default browser. *(Note: On some Linux GPU/Wayland drivers, WebKitGTK may experience noticeable scroll latency compared to Chromium).*
+* **Linux**:
+  * **Standalone** provides full Chromium rendering out of the box, avoiding compositor or scroll latency issues present in WebKitGTK under certain Wayland/Mesa configurations.
+  * **Server** runs the backend locally and displays the interface in your existing browser (Chromium/Firefox) with full hardware acceleration.
+  * **Slim** requires `webkit2gtk-4.1`. If not installed, it falls back to browser mode automatically.
 
-👉 Grab your preferred edition from the **[GitHub Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases)** page!
+Binaries are available under [Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases).
 
 ---
 
-## ⚡ Quick Start (from Source)
+## Supported Languages
+
+The application interface is fully localized into 28 languages (covering all official Steam Workshop languages):
+
+* English (`en`)
+* Українська (`ua`)
+* Deutsch (`de`)
+* Français (`fr`)
+* Italiano (`it`)
+* Español (`es`)
+* Español (Latinoamérica) (`latam`)
+* Polski (`pl`)
+* Português (`pt`)
+* Português (Brasil) (`pt-br`)
+* Čeština (`cs`)
+* Dansk (`da`)
+* Nederlands (`nl`)
+* Suomi (`fi`)
+* Ελληνικά (`el`)
+* Magyar (`hu`)
+* 日本語 (`ja`)
+* 한국어 (`ko`)
+* Norsk (`no`)
+* Română (`ro`)
+* 简体中文 (`zh-cn`)
+* 繁體中文 (`zh-tw`)
+* Svenska (`sv`)
+* ไทย (`th`)
+* Türkçe (`tr`)
+* Български (`bg`)
+* Tiếng Việt (`vi`)
+* Bahasa Indonesia (`id`)
+
+### Adding or Customizing Translations
+
+Community contributions for additional languages or phrasing improvements are welcome. To add a new language:
+
+1. Copy the reference translation file [`frontend/src/i18n/locales/en.json`](frontend/src/i18n/locales/en.json) to `frontend/src/i18n/locales/<language_code>.json`.
+2. Translate the values under `"ui"` (interface labels) and optionally `"tags"` (default category names).
+3. Add the language definition to `SUPPORTED_LANGUAGES` in [`frontend/src/i18n/languages.js`](frontend/src/i18n/languages.js):
+   ```javascript
+   { code: 'your_code', name: 'Native Language Name', steamLang: 'steam_language_identifier' }
+   ```
+4. Build the frontend (`cd frontend && npm run build`) and test the language selector in the settings menu.
+
+---
+
+## Running from Source
 
 ### Prerequisites
-* **Python 3.10+**
-* **Node.js 18+** & **npm**
+* Python 3.10+
+* Node.js 18+ and npm
 
 ### 1. Clone the repository
 ```bash
@@ -80,12 +131,12 @@ git clone https://github.com/macenkodenis/stormworks-workshop-manager.git
 cd stormworks-workshop-manager
 ```
 
-### 2. Running
+### 2. Launching
 * **Desktop Mode (Native Window)**:
   ```bash
   ./run_desktop.sh
   ```
-* **Server Edition (Browser Mode at http://localhost:57309)**:
+* **Server Mode (Browser Mode at http://localhost:57309)**:
   ```bash
   ./run_server.sh
   ```
@@ -93,45 +144,47 @@ cd stormworks-workshop-manager
 
 ---
 
-## 🏷️ Starter Tag Preset
+## Starter Tag Presets
 
-Want an instantly organized library? We include a curated starter pack with vehicle categories (Aircraft, Maritime, Land, Microcontrollers, Missions):
+A curated tag pack with vehicle categories (Aircraft, Maritime, Land, Microcontrollers, Missions) is included in [`presets/starter_tags_pack.swtags.json`](presets/starter_tags_pack.swtags.json).
 
+To load it:
 1. Open the application.
-2. In the left sidebar, click **"Імпортувати теги" (Import Tags)**.
-3. Select the file: [`presets/starter_tags_pack.swtags.json`](presets/starter_tags_pack.swtags.json).
-4. Review the preview and click **Apply**!
+2. In the sidebar, select **Import Tags**.
+3. Choose `presets/starter_tags_pack.swtags.json` and confirm.
 
 ---
 
-## 🛠️ Building Standalone Binaries
+## Building Binaries
 
-To build the standalone PyInstaller bundle locally:
+To build binaries locally using PyInstaller:
 
 ```bash
-# Build frontend and package desktop bundle
-./desktop/build_desktop.sh
+# Build frontend first
+cd frontend && npm install && npm run build && cd ..
+
+# Then build individual editions:
+pyinstaller desktop/desktop.spec        # Standalone
+pyinstaller desktop/desktop_slim.spec   # Slim
+pyinstaller desktop/server.spec         # Server
 ```
-The compiled application will be located in `dist/StormworksWorkshopManager/`.
 
 ---
 
-## 🤝 Contributing & Feedback
+## Contributing
 
-Contributions from the Stormworks community are welcome!
-* 🐛 Found a bug? Open a [Bug Report](https://github.com/macenkodenis/stormworks-workshop-manager/issues/new?template=bug_report.md).
-* 💡 Have an idea? Open a [Feature Request](https://github.com/macenkodenis/stormworks-workshop-manager/issues/new?template=feature_request.md).
-* 💻 Want to contribute code? Check out our [Contributing Guidelines](CONTRIBUTING.md) and open a **Pull Request**.
-
----
-
-## 📜 License
-
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.  
-See the [LICENSE](LICENSE) file for complete details.
-
-> **Why GPLv3?** This project is dedicated to the Stormworks gaming community. GPLv3 guarantees that this application and all derivative works will forever remain free, open-source, and accessible to everyone, preventing any unauthorized commercialization or closed-source redistribution.
+* Bug reports: [Open an issue](https://github.com/macenkodenis/stormworks-workshop-manager/issues/new?template=bug_report.md)
+* Feature requests: [Open a request](https://github.com/macenkodenis/stormworks-workshop-manager/issues/new?template=feature_request.md)
+* Code contributions: see [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-**Developed with ❤️ for the Stormworks Community by [SpaceCossaX](https://github.com/SpaceCossaX)**
+## License
+
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See [LICENSE](LICENSE) for details.
+
+The GPLv3 license ensures that this application and derivative works remain open-source and freely accessible to the Stormworks community, preventing closed-source redistribution.
+
+---
+
+Maintained by [SpaceCossaX](https://github.com/SpaceCossaX).

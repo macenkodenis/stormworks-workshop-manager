@@ -1343,26 +1343,6 @@ export function RightActionSidebar({
           </div>
         )}
 
-        {/* Big Apply Plan Button: ALWAYS visible and pinned */}
-        <button
-          type="button"
-          onClick={onOpenPlanModal}
-          disabled={pendingActionsCount === 0}
-          className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all duration-200 shadow border ${
-            pendingActionsCount > 0
-              ? 'bg-[#1c4d28] hover:bg-[#246334] active:bg-[#163d20] text-white border-[#3b8c4c] shadow-lg shadow-green-950/40 active:scale-98 cursor-pointer'
-              : 'bg-[#182029] text-gray-500 cursor-not-allowed border-[#202b38]'
-          }`}
-          title={
-            pendingActionsCount > 0
-              ? 'Відкрити вікно підтвердження та перегляду плану'
-              : 'Заплануйте дії для модів, щоб застосувати їх разом'
-          }
-        >
-          <Play className="w-3.5 h-3.5 fill-current text-[#a4d053]" />
-          <span>Застосувати план{pendingActionsCount > 0 ? ` (${pendingActionsCount})` : ''}</span>
-        </button>
-
       </div>
 
     </aside>

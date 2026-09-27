@@ -24,7 +24,8 @@ export function SettingsModal({
   onSaveStormworksSavePath,
   ingameFoldersStatus = null,
   foldersMode = 'single',
-  onSetFoldersMode
+  onSetFoldersMode,
+  onOpenUpdateModal
 }) {
   const { lang, setLang, translateTags, setTranslateTags, t } = useI18n();
   const { theme, setTheme, isHighContrast, toggleHighContrast, themes } = useTheme();
@@ -36,6 +37,23 @@ export function SettingsModal({
   const [customSavePathInput, setCustomSavePathInput] = useState(stormworksSavePath || '');
   const [savePathValidation, setSavePathValidation] = useState(null);
   const [isValidatingPath, setIsValidatingPath] = useState(false);
+
+  // Software update state
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState(null);
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await fetch('/api/updater/check');
+      const data = await res.json();
+      setUpdateCheckResult(data);
+    } catch (err) {
+      setUpdateCheckResult({ has_update: false, current_version: 'v0.1.0-beta.1', error: err.message });
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
 
   useEffect(() => {
     setCustomSavePathInput(stormworksSavePath || '');
@@ -578,14 +596,77 @@ export function SettingsModal({
                   {/* Validation Feedback */}
                   {savePathValidation && (
                     <div className={`text-[10.5px] px-1 font-medium ${savePathValidation.valid ? 'text-[#a4d053]' : 'text-[#ff6b6b]'}`}>
-                      {savePathValidation.valid ? '✓ save.xml знайдено та збережено!' : `✗ ${savePathValidation.error || 'Помилка валідації'}`}
+                      {savePathValidation.valid ? t('settings.savePathValid') : `✗ ${savePathValidation.error || t('settings.validationError')}`}
                     </div>
                   )}
 
                   {/* Auto-detected path footnote */}
                   {ingameFoldersStatus?.save_path && !stormworksSavePath && (
                     <div className="text-[10px] text-gray-500 font-mono truncate px-1" title={ingameFoldersStatus.save_path}>
-                      Автовизначено: {ingameFoldersStatus.save_path}
+                      {t('settings.savePathAutoDetected', { path: ingameFoldersStatus.save_path })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="h-px bg-[#1c2a38] my-1" />
+
+                {/* Software Updates Block */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-white block">
+                        {t('settings.softwareUpdates')}
+                      </span>
+                      <span className="text-[11px] text-gray-400 block">
+                        {t('settings.currentVersion', { version: 'v0.1.0-beta.1' })}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCheckUpdates}
+                      disabled={isCheckingUpdates}
+                      className="px-3 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs font-medium rounded-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
+                      <span>{isCheckingUpdates ? t('settings.checkingUpdates') : t('settings.checkUpdates')}</span>
+                    </button>
+                  </div>
+
+                  {updateCheckResult && (
+                    <div className={`text-[11px] p-2.5 rounded border space-y-2 ${
+                      updateCheckResult.has_update 
+                        ? 'bg-[#1b2f1e] border-[#388e3c] text-green-300' 
+                        : 'bg-[#121a24] border-[#202f40] text-gray-300'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>
+                          {updateCheckResult.has_update
+                            ? t('settings.updateAvailable', { version: updateCheckResult.latest_version })
+                            : t('settings.upToDate', { version: updateCheckResult.current_version })}
+                        </span>
+                        {updateCheckResult.release_url && (
+                          <a
+                            href={updateCheckResult.release_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#66c0f4] hover:underline text-[10.5px] font-semibold"
+                          >
+                            {t('settings.viewRelease')} →
+                          </a>
+                        )}
+                      </div>
+
+                      {updateCheckResult.has_update && (
+                        <div className="pt-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => onOpenUpdateModal && onOpenUpdateModal(updateCheckResult)}
+                            className="px-3 py-1 bg-[#2e7d32] hover:bg-[#388e3c] text-white text-[11px] font-bold rounded shadow transition cursor-pointer"
+                          >
+                            {t('updater.downloadBtn')}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

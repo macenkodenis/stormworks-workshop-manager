@@ -32,9 +32,9 @@ export class ErrorBoundary extends React.Component {
       }
 
 const FALLBACK_STRINGS = {
-  'error.displayError': 'Помилка відображення',
-  'error.unexpectedModalError': 'Виникла неочікувана помилка під час відкриття вікна. Робота інтерфейсу не порушена.',
-  'error.close': 'Закрити'
+  'error.displayError': 'Display Error',
+  'error.unexpectedModalError': 'An unexpected error occurred while opening the modal. UI operation is not affected.',
+  'error.close': 'Close'
 };
 
       const t = (k) => {
