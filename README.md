@@ -45,13 +45,24 @@ A fast, feature-rich desktop and web manager for your subscribed **Stormworks: B
 
 ## 📦 Editions & Downloads
 
-We provide 3 editions tailored to different player needs:
+We provide 3 distinct editions across Linux and Windows so you can choose the ideal balance of download size, convenience, and rendering performance:
 
-| Edition | Linux | Windows | Size | Best for |
+| Edition | Linux | Windows | Size (Archive) | Description & Use Case |
 | :--- | :---: | :---: | :---: | :--- |
-| **🚀 Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~210–230 MB | **All-in-one.** Bundles dedicated Chromium engine. Guaranteed to work offline on any OS without extra system packages. |
-| **🪶 Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~30–45 MB | **Lightweight.** Uses built-in system browser (Edge WebView2 on Windows, WebKitGTK on Linux). Saves storage & RAM. |
-| **🌐 Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~15–20 MB | **Ultra-light / Headless.** No GUI dependencies. Runs on port `57309` and automatically opens in your default browser (Chrome, Firefox, etc.). Ideal for home servers and laptops. |
+| **🚀 Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~210–230 MB | **Maximum stability & 60+ FPS smoothness.** Bundles its own self-contained Chromium engine (QtWebEngine). Zero system dependencies, works out of the box on any Linux distribution or Windows PC. |
+| **🪶 Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~35–70 MB | **Lightweight desktop app.** Uses your operating system's built-in web engine (Microsoft Edge WebView2 on Windows, WebKitGTK on Linux). Saves storage space and RAM. |
+| **🌐 Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~15–20 MB | **Ultra-light & headless.** Stripped of all desktop GUI libraries. Runs the backend on port `57309` and automatically opens in your default browser (Chrome, Firefox, Brave, etc.). Ideal for laptops, home servers, or running in the background. |
+
+### 🔍 Which edition should I choose?
+
+* **Windows Users**:
+  * **🪶 Slim is highly recommended!** Modern Windows (10/11) includes Edge WebView2 by default, providing full Chromium GPU acceleration, 60 FPS scrolling, and native look with an archive size of only ~35 MB.
+  * Use **🚀 Standalone** if you are on an older Windows install without WebView2, or **🌐 Server** if you prefer managing creations directly in your primary web browser without a separate application window.
+
+* **Linux Users**:
+  * **🚀 Standalone is recommended** for the smoothest desktop experience. It guarantees flawless 60 FPS scrolling and rapid image rendering in heavy workshop grids regardless of your desktop environment (Wayland/X11, GNOME, KDE, etc.).
+  * **🌐 Server is the best lightweight choice** (~20 MB download). When started, it opens directly in your everyday browser with full hardware acceleration and native responsiveness.
+  * **🪶 Slim** uses WebKitGTK (`webkit2gtk-4.1`). If WebKitGTK is not installed on your system, it gracefully falls back to opening your default browser. *(Note: On some Linux GPU/Wayland drivers, WebKitGTK may experience noticeable scroll latency compared to Chromium).*
 
 👉 Grab your preferred edition from the **[GitHub Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases)** page!
 
