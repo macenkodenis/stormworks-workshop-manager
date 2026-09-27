@@ -43,46 +43,42 @@ A fast, feature-rich desktop and web manager for your subscribed **Stormworks: B
 
 ---
 
-## ⚡ Quick Start
+## 📦 Editions & Downloads
 
-### Option A: Download Standalone Release (Recommended)
-You do not need to install Python or Node.js. Simply grab the latest pre-compiled build:
+We provide 3 editions tailored to different player needs:
 
-1. Go to the [Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases) page.
-2. Download the package for your operating system:
-   * **Linux**: `StormworksWorkshopManager-linux-x86_64.tar.gz`
-   * **Windows**: `StormworksWorkshopManager-windows-x64.zip`
-3. Extract the archive and run the `StormworksWorkshopManager` executable!
+| Edition | Linux | Windows | Size | Best for |
+| :--- | :---: | :---: | :---: | :--- |
+| **🚀 Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~210–230 MB | **All-in-one.** Bundles dedicated Chromium engine. Guaranteed to work offline on any OS without extra system packages. |
+| **🪶 Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~30–45 MB | **Lightweight.** Uses built-in system browser (Edge WebView2 on Windows, WebKitGTK on Linux). Saves storage & RAM. |
+| **🌐 Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~15–20 MB | **Ultra-light / Headless.** No GUI dependencies. Runs on port `57309` and automatically opens in your default browser (Chrome, Firefox, etc.). Ideal for home servers and laptops. |
+
+👉 Grab your preferred edition from the **[GitHub Releases](https://github.com/macenkodenis/stormworks-workshop-manager/releases)** page!
 
 ---
 
-### Option B: Running from Source
+## ⚡ Quick Start (from Source)
 
-#### Prerequisites
+### Prerequisites
 * **Python 3.10+**
 * **Node.js 18+** & **npm**
 
-#### 1. Clone the repository
+### 1. Clone the repository
 ```bash
 git clone https://github.com/macenkodenis/stormworks-workshop-manager.git
 cd stormworks-workshop-manager
 ```
 
-#### 2. Run in Desktop Mode (Native Window)
-```bash
-# On Linux / macOS:
-./run_desktop.sh
-
-# Or directly with Python:
-python3 run_desktop.py
-```
-*(The launcher will automatically create the virtual environment and install dependencies on first run).*
-
-#### 3. Run in Web Server Mode (Browser)
-```bash
-./run.sh
-```
-Then open your browser at `http://localhost:8000`.
+### 2. Running
+* **Desktop Mode (Native Window)**:
+  ```bash
+  ./run_desktop.sh
+  ```
+* **Server Edition (Browser Mode at http://localhost:57309)**:
+  ```bash
+  ./run_server.sh
+  ```
+  *(Or with custom parameters: `python run_desktop.py --server --port 57309`)*
 
 ---
 

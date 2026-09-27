@@ -155,11 +155,19 @@ async def run_full_sync(lang: str = "en"):
     finally:
         scan_state["is_scanning"] = False
 
+def clean_lang(lang: Optional[str]) -> str:
+    if not lang:
+        return "en"
+    cleaned = str(lang).strip().lower()
+    if "object" in cleaned or not (2 <= len(cleaned) <= 10):
+        return "en"
+    return cleaned
+
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, full: bool = False, lang: Optional[str] = "en"):
     if scan_state["is_scanning"]:
         return {"status": "already_running", "scan_type": scan_state.get("scan_type", "incremental")}
-    active_lang = (lang or "en").strip().lower()
+    active_lang = clean_lang(lang)
     if full:
         background_tasks.add_task(run_full_sync, active_lang)
         return {"status": "started", "type": "full", "limit": MAX_WORKSHOP_ITEMS, "lang": active_lang}
@@ -171,7 +179,7 @@ async def trigger_scan(background_tasks: BackgroundTasks, full: bool = False, la
 async def trigger_full_scan(background_tasks: BackgroundTasks, lang: Optional[str] = "en"):
     if scan_state["is_scanning"]:
         return {"status": "already_running", "scan_type": scan_state.get("scan_type", "full")}
-    active_lang = (lang or "en").strip().lower()
+    active_lang = clean_lang(lang)
     background_tasks.add_task(run_full_sync, active_lang)
     return {"status": "started", "type": "full", "limit": MAX_WORKSHOP_ITEMS, "lang": active_lang}
 

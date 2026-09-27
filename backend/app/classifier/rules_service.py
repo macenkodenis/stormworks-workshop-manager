@@ -1,7 +1,7 @@
 import json
 import re
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from ..db.session import get_connection
 from .massive_thesaurus import MASSIVE_VEHICLE_DATABASE, get_thesaurus_matches
 

@@ -16,9 +16,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: StormworksWorkshopManager-linux-x86_64.tar.gz
           - os: windows-latest
-            artifact_name: StormworksWorkshopManager-windows-x64.zip
 
     steps:
       - name: Checkout Source Code
@@ -50,27 +48,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
-      - name: Package Standalone Application with PyInstaller
+      - name: Package Applications with PyInstaller (Standalone, Slim, Server)
         shell: bash
         run: |
           pyinstaller --clean --noconfirm desktop/desktop.spec
+          pyinstaller --clean --noconfirm desktop/desktop_slim.spec
+          pyinstaller --clean --noconfirm desktop/server.spec
 
-      - name: Archive Linux Bundle
+      - name: Archive Linux Bundles
         if: runner.os == 'Linux'
         run: |
-          tar -czvf StormworksWorkshopManager-linux-x86_64.tar.gz -C dist StormworksWorkshopManager
+          tar -czvf StormworksWorkshopManager-Linux-Standalone-x86_64.tar.gz -C dist StormworksWorkshopManager
+          tar -czvf StormworksWorkshopManager-Linux-Slim-x86_64.tar.gz -C dist StormworksWorkshopManager-Slim
+          tar -czvf StormworksWorkshopManager-Server-Linux-x86_64.tar.gz -C dist StormworksWorkshopManager-Server
 
-      - name: Archive Windows Bundle
+      - name: Archive Windows Bundles
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/StormworksWorkshopManager -DestinationPath StormworksWorkshopManager-windows-x64.zip
+          Compress-Archive -Path dist/StormworksWorkshopManager -DestinationPath StormworksWorkshopManager-Windows-Standalone-x64.zip
+          Compress-Archive -Path dist/StormworksWorkshopManager-Slim -DestinationPath StormworksWorkshopManager-Windows-Slim-x64.zip
+          Compress-Archive -Path dist/StormworksWorkshopManager-Server -DestinationPath StormworksWorkshopManager-Server-Windows-x64.zip
 
-      - name: Upload Build Artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}
+          name: ${{ matrix.os }}-artifacts
+          path: |
+            StormworksWorkshopManager-*.tar.gz
+            StormworksWorkshopManager-*.zip
 
   release:
     name: Publish GitHub Release

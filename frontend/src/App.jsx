@@ -1007,7 +1007,7 @@ function normalizeCardSize(val) {
 
   // Trigger quick incremental sync (with optional language specification)
   const handleScan = async (syncLang = null) => {
-    const targetLang = syncLang || lang || 'en';
+    const targetLang = (typeof syncLang === 'string' && syncLang) ? syncLang : (typeof lang === 'string' ? lang : 'en');
     setIsScanning(true);
     try {
       await fetch(`/api/scan?full=false&lang=${targetLang}`, { method: 'POST' });
@@ -1030,7 +1030,7 @@ function normalizeCardSize(val) {
 
   // Handle Full Library Sync (re-fetches Steam details for all items with active language)
   const handleFullSync = async (syncLang = null) => {
-    const targetLang = syncLang || lang || 'en';
+    const targetLang = (typeof syncLang === 'string' && syncLang) ? syncLang : (typeof lang === 'string' ? lang : 'en');
     setIsScanning(true);
     try {
       await fetch(`/api/scan?full=true&lang=${targetLang}`, { method: 'POST' });
