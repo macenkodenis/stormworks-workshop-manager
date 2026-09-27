@@ -467,6 +467,22 @@ function normalizeCardSize(val) {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isExecutingPlan, setIsExecutingPlan] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Global shortcut (Ctrl+, or F2) to open/close Settings
+  useEffect(() => {
+    const handleGlobalShortcuts = (e) => {
+      const inInput = e.target?.tagName === 'INPUT' || e.target?.tagName === 'TEXTAREA';
+      if ((e.ctrlKey || e.metaKey) && (e.key === ',' || e.key === 'б' || e.key === 'Б')) {
+        e.preventDefault();
+        setIsSettingsOpen(prev => !prev);
+      } else if (e.key === 'F2' && !inInput) {
+        e.preventDefault();
+        setIsSettingsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, []);
   const [isClassifierRulesOpen, setIsClassifierRulesOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
@@ -1073,7 +1089,12 @@ function normalizeCardSize(val) {
   };
 
   // Re-fetch items when backend sorting or interface language changes
+  const isFirstSortMountRef = useRef(true);
   useEffect(() => {
+    if (isFirstSortMountRef.current) {
+      isFirstSortMountRef.current = false;
+      return;
+    }
     fetch(`/api/items?sort_by=${sortBy}&sort_dir=${sortDir}&lang=${lang}`)
       .then(r => r.json())
       .then(res => setItems(res.items || []))
@@ -2532,6 +2553,25 @@ function normalizeCardSize(val) {
     setAnchorId(id);
   }, []);
 
+  // Progressive Catalog Chunk Rendering: 60 items per batch to ensure smooth 60fps & instant loading
+  const [visibleCount, setVisibleCount] = useState(60);
+
+  useEffect(() => {
+    setVisibleCount(60);
+  }, [searchQuery, selectedTags, selectedUserTags, excludedTags, systemFilter, selectedCollectionId, selectedInGameFolder, sortBy, sortDir]);
+
+  useEffect(() => {
+    const mainEl = mainRef.current;
+    if (!mainEl) return;
+    const handleCatalogScroll = () => {
+      if (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 800) {
+        setVisibleCount(prev => (prev < filteredItems.length ? Math.min(prev + 60, filteredItems.length) : prev));
+      }
+    };
+    mainEl.addEventListener('scroll', handleCatalogScroll, { passive: true });
+    return () => mainEl.removeEventListener('scroll', handleCatalogScroll);
+  }, [filteredItems.length]);
+
   // Selection handlers
   const handleItemClick = useCallback((e, item) => {
     const id = item.published_file_id;
@@ -3059,7 +3099,7 @@ function normalizeCardSize(val) {
             </div>
           ) : (
             <div className={gridClassName} style={gridContainerStyle}>
-              {filteredItems.map((item, index) => {
+              {filteredItems.slice(0, visibleCount).map((item, index) => {
                 const isSelected = selectedIds.has(item.published_file_id);
                 const isAnchor = anchorId === item.published_file_id;
                 if (viewMode === 'list') {
@@ -3109,6 +3149,12 @@ function normalizeCardSize(val) {
                   />
                 );
               })}
+            </div>
+          )}
+
+          {visibleCount < filteredItems.length && (
+            <div className="py-4 text-center text-xs text-gray-500 font-medium">
+              {t('app.loading')} ({visibleCount} / {filteredItems.length})
             </div>
           )}
 

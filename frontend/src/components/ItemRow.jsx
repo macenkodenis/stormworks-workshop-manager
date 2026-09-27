@@ -59,7 +59,9 @@ export const ItemRow = React.memo(function ItemRow({
   onContextMenu
 }) {
   const { t, tTag } = useI18n();
-  const previewSrc = `/api/previews/${item.published_file_id}`;
+  const previewSrc = item.has_local_preview
+    ? `/api/previews/${item.published_file_id}`
+    : (item.preview_url || '');
 
   // Unified tags: active Steam tags + User tags
   const deactivatedSet = useMemo(

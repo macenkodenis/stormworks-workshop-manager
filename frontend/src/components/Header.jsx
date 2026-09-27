@@ -284,6 +284,7 @@ export function Header({
           className="shrink-0 flex items-center justify-end gap-2"
         >
           <button
+            type="button"
             onClick={onRefresh}
             disabled={isScanning}
             title={t('header.refreshQuickTooltip')}
@@ -293,16 +294,22 @@ export function Header({
                 : 'bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] cursor-pointer'
             }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-[#66c0f4]' : ''}`} />
-            <span className="hidden sm:inline">{isScanning ? t('header.refreshScanning') : t('header.quickSync')}</span>
+            <RefreshCw className={`w-3.5 h-3.5 pointer-events-none ${isScanning ? 'animate-spin text-[#66c0f4]' : ''}`} />
+            <span className="hidden sm:inline pointer-events-none">{isScanning ? t('header.refreshScanning') : t('header.quickSync')}</span>
           </button>
 
           <button
-            onClick={onOpenSettings}
-            title={t('header.settings')}
-            className="flex items-center justify-center p-1.5 rounded-md bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] text-gray-200 hover:text-white transition shadow cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSettings();
+            }}
+            title={`${t('header.settings')} (Ctrl+,)`}
+            aria-label={t('header.settings')}
+            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#2a475e] hover:bg-[#3d6585] active:bg-[#1e3445] text-gray-200 hover:text-white transition shadow cursor-pointer text-xs font-semibold"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4 pointer-events-none" />
+            <span className="hidden xl:inline pointer-events-none">{t('header.settings')}</span>
           </button>
         </div>
 

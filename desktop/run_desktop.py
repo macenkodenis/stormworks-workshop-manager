@@ -302,24 +302,6 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
 
     print("[OK] Backend ready! Opening application window...")
 
-    class DesktopApi:
-        def __init__(self):
-            self.win = None
-        def set_window(self, win):
-            self.win = win
-        def copy_to_clipboard(self, text):
-            try:
-                from PyQt6.QtWidgets import QApplication
-                clipboard = QApplication.clipboard()
-                if clipboard:
-                    clipboard.setText(str(text))
-                    return {"status": "ok"}
-            except Exception:
-                pass
-            return {"status": "fallback"}
-
-    desktop_api = DesktopApi()
-
     saved_state = load_window_state()
     saved_width = saved_state.get("width", 1440)
     saved_height = saved_state.get("height", 900)
@@ -337,15 +319,13 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
         "text_select": True,
         "zoomable": True,
         "background_color": "#121922",
-        "maximized": bool(saved_state.get("maximized", False)),
-        "js_api": desktop_api
+        "maximized": bool(saved_state.get("maximized", False))
     }
     if saved_state.get("x") is not None and saved_state.get("y") is not None:
         create_window_kwargs["x"] = saved_state["x"]
         create_window_kwargs["y"] = saved_state["y"]
 
     window = webview.create_window(**create_window_kwargs)
-    desktop_api.set_window(window)
 
     storage_dir = DATA_DIR / "webview_storage"
     storage_dir.mkdir(parents=True, exist_ok=True)
