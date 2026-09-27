@@ -10,6 +10,7 @@ pywebview>=5.0.0
 PyQt6>=6.5.0
 PyQt6-WebEngine>=6.5.0
 QtPy>=2.4.0
+Pillow>=10.0.0
 
 # Build & Standalone Packaging
 pyinstaller>=6.0.0

@@ -8,7 +8,9 @@ spec_dir = Path(SPECPATH) if 'SPECPATH' in globals() else Path(os.getcwd()) / 'd
 spec_root = spec_dir.resolve().parent
 backend_dir = spec_root / 'backend'
 static_dir = backend_dir / 'static'
-icon_path = spec_root / 'frontend' / 'src' / 'assets' / 'stormworks_icon.png'
+icon_ico = spec_root / 'frontend' / 'src' / 'assets' / 'stormworks_icon.ico'
+icon_png = spec_root / 'frontend' / 'src' / 'assets' / 'stormworks_icon.png'
+icon_path = icon_ico if icon_ico.exists() else icon_png
 
 datas = [
     (str(static_dir), 'static'),

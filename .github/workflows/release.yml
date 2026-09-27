@@ -17,14 +17,8 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: StormworksWorkshopManager-linux-x86_64.tar.gz
-            build_cmd: |
-              pyinstaller --clean --noconfirm desktop/desktop.spec
-              tar -czvf StormworksWorkshopManager-linux-x86_64.tar.gz -C dist StormworksWorkshopManager
           - os: windows-latest
             artifact_name: StormworksWorkshopManager-windows-x64.zip
-            build_cmd: |
-              pyinstaller --clean --noconfirm desktop/desktop.spec
-              powershell Compress-Archive -Path dist/StormworksWorkshopManager -DestinationPath StormworksWorkshopManager-windows-x64.zip
 
     steps:
       - name: Checkout Source Code
@@ -57,7 +51,20 @@ jobs:
           pip install -r backend/requirements.txt
 
       - name: Package Standalone Application with PyInstaller
-        run: ${{ matrix.build_cmd }}
+        shell: bash
+        run: |
+          pyinstaller --clean --noconfirm desktop/desktop.spec
+
+      - name: Archive Linux Bundle
+        if: runner.os == 'Linux'
+        run: |
+          tar -czvf StormworksWorkshopManager-linux-x86_64.tar.gz -C dist StormworksWorkshopManager
+
+      - name: Archive Windows Bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/StormworksWorkshopManager -DestinationPath StormworksWorkshopManager-windows-x64.zip
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
