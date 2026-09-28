@@ -245,13 +245,13 @@ def run_gui_mode(host: str, port: int, requested_gui: str = "auto"):
             return
         gui_engine = "gtk"
     elif requested_gui == "auto":
-        if has_qt:
-            gui_engine = "qt"
-        elif sys.platform.startswith("win"):
-            # Windows fallback to Edge WebView2 (lightweight, native)
+        if sys.platform.startswith("win"):
+            # Windows: Edge WebView2 (native, GPU-accelerated, lightweight)
             gui_engine = "edgechromium"
         elif sys.platform.startswith("linux"):
-            if has_gtk_webkit():
+            if has_qt:
+                gui_engine = "qt"
+            elif has_gtk_webkit():
                 gui_engine = "gtk"
             else:
                 print("[!] Note: Neither PyQt6 nor WebKitGTK found for native window.")

@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Captured clean English interface screenshots across all key sections for documentation.
   * Added localized translation guide in `README.md`.
 
+* **Catalog Virtualization & Performance**:
+  * Added progressive batch card rendering in `App.jsx` (initial 60 items + 40 on scroll), dramatically boosting scrolling FPS and responsiveness across 1500+ items.
+  * Added instant Steam CDN fallback for workshop thumbnails when local cache is still synchronizing on fresh installs.
+* **Windows Stability & Steam Integration**:
+  * Resolved Python GIL deadlocks between Uvicorn and pywebview on Windows by isolating the backend in a dedicated OS subprocess with `atexit` termination.
+  * Added automatic Steam discovery on Windows via Registry (`winreg`) and standard install locations.
+  * Discontinued Windows Standalone in favor of native, GPU-accelerated Edge WebView2 (Slim) and Server editions.
+  * Standardized Steam CEF debug launch messages to international English.
+
 ### Fixed
 * **Windows 11 Unicode Crash (Issue #1)**:
   * Resolved `UnicodeEncodeError: 'charmap' codec can't encode character '\u2713'` occurring in Western European and US Windows locales (`cp1252`/`cp437`).
@@ -34,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Sanitized all terminal console status logs in `desktop/run_desktop.py` to universal ASCII equivalents (`[OK]`, `-`).
 * **UI Polish**:
   * Removed redundant duplicate "Apply Plan" button from the bottom of the right action planner sidebar.
+  * Prevented quick sync button wrapping on smaller screens.
+  * Fixed mouse drag click behavior on settings modal.
+  * Fixed tag structure initialization state on fresh databases.
   * Removed hardcoded Ukrainian strings in action plan and settings components to ensure 100% localization consistency.
 
 ---

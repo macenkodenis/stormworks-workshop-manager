@@ -2,8 +2,6 @@ name: Build & Release
 
 on:
   push:
-    branches:
-      - test-windows
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,6 +16,7 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: ubuntu-latest
           - os: windows-latest
 
     steps:

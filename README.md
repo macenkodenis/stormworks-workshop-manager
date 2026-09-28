@@ -47,20 +47,19 @@ A desktop and web utility for managing subscribed Steam Workshop creations for *
 
 ## Editions & Distribution
 
-The application is distributed in three editions for Linux and Windows:
+The application is distributed in optimized packages for Linux and Windows:
 
 | Edition | Linux Package | Windows Package | Archive Size | Runtime Details |
 | :--- | :---: | :---: | :---: | :--- |
-| **Standalone** | `...-Linux-Standalone-x86_64.tar.gz` | `...-Windows-Standalone-x64.zip` | ~220–240 MB | Bundled QtWebEngine (Chromium). Fully self-contained, no system runtime dependencies. |
-| **Slim** | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~20–38 MB | Uses system WebView (Edge WebView2 on Windows, WebKit2GTK 4.1 on Linux). |
+| **Slim** (Recommended) | `...-Linux-Slim-x86_64.tar.gz` | `...-Windows-Slim-x64.zip` | ~21–38 MB | Native GPU-accelerated WebView (Edge WebView2 on Windows, WebKit2GTK on Linux). Minimal download size. |
 | **Server** | `...-Server-Linux-x86_64.tar.gz` | `...-Server-Windows-x64.zip` | ~18–37 MB | Headless backend only; runs on port `57309` and opens in the system default browser. |
+| **Standalone** (Linux only) | `...-Linux-Standalone-x86_64.tar.gz` | — | ~240 MB | Bundled QtWebEngine (Chromium). Completely self-contained for Linux desktop environments. |
 
 ### Selection Notes
 
 * **Windows**:
-  * **Slim** is recommended for Windows 10/11: it utilizes the built-in Edge WebView2 runtime (Chromium), providing GPU acceleration with a ~21 MB archive size.
-  * **Standalone** is intended for systems without WebView2.
-  * **Server** allows running the service without a native application window.
+  * **Slim** is the official and recommended edition for Windows 10/11: it utilizes the built-in Microsoft Edge WebView2 runtime (Chromium), providing native look, full GPU acceleration, and responsive UI with an archive size of only ~21 MB.
+  * **Server** allows running the service headlessly and accessing the interface in your primary web browser without a separate application window.
 
 * **Linux**:
   * **Standalone** provides full Chromium rendering out of the box, avoiding compositor or scroll latency issues present in WebKitGTK under certain Wayland/Mesa configurations.

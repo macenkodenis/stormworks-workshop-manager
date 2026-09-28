@@ -95,7 +95,7 @@ def detect_current_edition() -> Dict[str, str]:
     elif "server" in exe_name:
         edition = "server"
     else:
-        edition = "standalone"
+        edition = "slim" if os_name == "windows" else "standalone"
 
     # Installation root directory
     if is_frozen:
@@ -120,6 +120,8 @@ def find_matching_asset(assets: List[Dict[str, Any]], env: Dict[str, Any]) -> Op
         "server": "Server"
     }
     ed_name = edition_map.get(env["edition"], "Standalone")
+    if env["os"] == "windows" and ed_name == "Standalone":
+        ed_name = "Slim"
 
     for asset in assets:
         name = asset.get("name", "")
