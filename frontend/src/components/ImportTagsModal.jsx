@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   X,
   FileUp,
@@ -80,6 +80,19 @@ export function ImportTagsModal({
     setItemOverrides({});
     onClose();
   };
+
+  const mouseDownTargetRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isApplying) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isApplying]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -397,14 +410,20 @@ export function ImportTagsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-hidden"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isApplying) handleClose();
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
       }}
+      onClick={(e) => {
+        if (!isApplying && e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          handleClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
     >
       <div
-        className="w-full max-w-4xl h-[90vh] max-h-[850px] bg-[#1b2838] border border-[#2a475e] rounded-xl shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0]"
+        className="w-full max-w-4xl h-full max-h-[calc(100%-2rem)] max-h-[850px] bg-[#1b2838] border border-[#2a475e] rounded-xl shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0] my-auto"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-3.5 bg-[#171d25] border-b border-[#2a475e] shrink-0">

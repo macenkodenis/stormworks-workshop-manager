@@ -29,7 +29,19 @@ export function ImportCollectionModal({
 
   const urlInputRef = useRef(null);
   const nameInputRef = useRef(null);
+  const mouseDownTargetRef = useRef(null);
   const { contextMenu, handleInputContextMenu, closeContextMenu } = useInputContextMenu();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isImporting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isImporting, onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -107,11 +119,27 @@ export function ImportCollectionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none">
-      <div className="bg-[#171d25] border border-[#22303e] rounded-xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (!isImporting && e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none overflow-y-auto"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="bg-[#171d25] border border-[#22303e] rounded-xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100%-2rem)] my-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#22303e] bg-[#121922]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#22303e] bg-[#121922] shrink-0">
           <div className="flex items-center gap-2">
             <DownloadCloud className="w-5 h-5 text-[#66c0f4]" />
             <h2 className="text-sm font-bold text-white tracking-wide">
@@ -363,7 +391,7 @@ export function ImportCollectionModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[#22303e] bg-[#121922]">
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[#22303e] bg-[#121922] shrink-0">
           <button
             type="button"
             onClick={onClose}

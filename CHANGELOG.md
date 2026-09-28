@@ -36,11 +36,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Discontinued Windows Standalone in favor of native, GPU-accelerated Edge WebView2 (Slim) and Server editions.
   * Standardized Steam CEF debug launch messages to international English.
 
+* **UI Scaling & Viewport Independence (Full % Migration)**:
+  * Completely eliminated all viewport-height (`vh`, `h-screen`, `min-h-screen`) dependencies across the frontend, replacing them with percentage-based bounds (`h-full`, `max-h-[calc(100%-2rem)]`).
+  * Unified all 7 application modals (Settings, Action Plan, Classifier Rules, In-Place Updater, Import Collection, Import Tags, Mod Detail) with pinned headers and footers (`shrink-0`), full `Escape` key dismissal, safe backdrop click handling (`mouseDownTargetRef`), and fallback overlay scrolling.
+  * Unified "New Tags Detected" into a single seamless scroll container above the mod actions list in Action Plan Modal.
+  * Added dynamic virtual bottom spacer (`bottomSpacerHeight`) to mod catalog in `App.jsx`, ensuring a perfectly stable scrollbar slider across 1500+ items without DOM spikes on Windows.
+  * Updated Settings Modal with balanced two-column layout, dedicated update card, and high-contrast scrollbars.
+
 ### Fixed
 * **Windows 11 Unicode Crash (Issue #1)**:
   * Resolved `UnicodeEncodeError: 'charmap' codec can't encode character '\u2713'` occurring in Western European and US Windows locales (`cp1252`/`cp437`).
   * Added automatic `sys.stdout` and `sys.stderr` UTF-8 reconfiguration with `errors="replace"` on Windows platforms.
   * Sanitized all terminal console status logs in `desktop/run_desktop.py` to universal ASCII equivalents (`[OK]`, `-`).
+* **UI Scaling & Modals**:
+  * Resolved Chromium CSS zoom bug where scaling UI down to 75% left a 25–40% black empty void at the bottom, and scaling to 125% pushed modal buttons off-screen.
+  * Fixed trap state in dialogs by implementing global `Escape` listeners and click-outside dismissal across all modals.
+  * Fixed modal overflow when many new tags accumulate in Action Plan Modal by placing tags and items under a single unified scrollbar.
+  * Fixed catalog scrollbar thumb jumping and resizing during scrolling through large workshop libraries.
 * **UI Polish**:
   * Removed redundant duplicate "Apply Plan" button from the bottom of the right action planner sidebar.
   * Prevented quick sync button wrapping on smaller screens.

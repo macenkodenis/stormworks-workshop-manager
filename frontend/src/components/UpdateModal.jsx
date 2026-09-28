@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -8,6 +8,18 @@ export function UpdateModal({ isOpen, onClose, updateData, onDone }) {
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [errorMsg, setErrorMsg] = useState(null);
+  const mouseDownTargetRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && status !== 'restarting') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, status, onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -73,14 +85,26 @@ export function UpdateModal({ isOpen, onClose, updateData, onDone }) {
   const assetSizeMb = asset?.size ? (asset.size / (1024 * 1024)).toFixed(1) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (status !== 'restarting' && e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+    >
       <div 
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-xl bg-[#141b24] border border-[#233547] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        className="relative w-full max-w-xl bg-[#141b24] border border-[#233547] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100%-2rem)] my-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#202f40] bg-[#101720]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#202f40] bg-[#101720] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#1c3e5e] border border-[#2d5885] flex items-center justify-center text-[#66c0f4]">
               <Sparkles className="w-4 h-4" />
@@ -179,7 +203,7 @@ export function UpdateModal({ isOpen, onClose, updateData, onDone }) {
         </div>
 
         {/* Footer actions */}
-        <div className="px-5 py-3 border-t border-[#202f40] bg-[#101720] flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-[#202f40] bg-[#101720] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}

@@ -160,7 +160,7 @@ export function SettingsModal({
       }}
     >
       <div
-        className="w-full max-w-3xl max-h-[90vh] bg-[#1b2838] border border-[#2a475e] rounded-xl shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0] my-auto"
+        className="w-full max-w-3xl max-h-[calc(100%-2rem)] bg-[#1b2838] border border-[#2a475e] rounded-xl shadow-2xl overflow-hidden flex flex-col text-[#c7d5e0] my-auto"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -180,7 +180,7 @@ export function SettingsModal({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-3.5 sm:p-4 flex-1 overflow-y-auto min-h-0">
+        <div className="p-3.5 sm:p-4 flex-1 overflow-y-auto min-h-0 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:#3d6585_#101822]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
             
             {/* Left Column: Interface & Localization */}
@@ -404,6 +404,73 @@ export function SettingsModal({
                 </div>
               </div>
 
+              {/* Card 3: Software Updates */}
+              <div className="bg-[#121923] border border-[#233547] rounded-xl p-3 sm:p-3.5 space-y-3 shadow-sm">
+                <div className="flex items-center gap-2 pb-1.5 border-b border-[#1c2a38]">
+                  <RefreshCw className="w-4 h-4 text-[#66c0f4]" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                    {t('settings.softwareUpdates')}
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] text-gray-400 block">
+                        {t('settings.currentVersion', { version: updateCheckResult?.current_version || 'v0.1.1-beta-updatable' })}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCheckUpdates}
+                      disabled={isCheckingUpdates}
+                      className="px-3 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs font-medium rounded-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
+                      <span>{isCheckingUpdates ? t('settings.checkingUpdates') : t('settings.checkUpdates')}</span>
+                    </button>
+                  </div>
+
+                  {updateCheckResult && (
+                    <div className={`text-[11px] p-2.5 rounded border space-y-2 ${
+                      updateCheckResult.has_update 
+                        ? 'bg-[#1b2f1e] border-[#388e3c] text-green-300' 
+                        : 'bg-[#121a24] border-[#202f40] text-gray-300'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>
+                          {updateCheckResult.has_update
+                            ? t('settings.updateAvailable', { version: updateCheckResult.latest_version })
+                            : t('settings.upToDate', { version: updateCheckResult.current_version })}
+                        </span>
+                        {updateCheckResult.release_url && (
+                          <a
+                            href={updateCheckResult.release_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#66c0f4] hover:underline text-[10.5px] font-semibold"
+                          >
+                            {t('settings.viewRelease')} →
+                          </a>
+                        )}
+                      </div>
+
+                      {updateCheckResult.has_update && (
+                        <div className="pt-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => onOpenUpdateModal && onOpenUpdateModal(updateCheckResult)}
+                            className="px-3 py-1 bg-[#2e7d32] hover:bg-[#388e3c] text-white text-[11px] font-bold rounded shadow transition cursor-pointer"
+                          >
+                            {t('updater.downloadBtn')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
 
             {/* Right Column: Steam & Data Tools */}
@@ -612,69 +679,6 @@ export function SettingsModal({
                   {ingameFoldersStatus?.save_path && !stormworksSavePath && (
                     <div className="text-[10px] text-gray-500 font-mono truncate px-1" title={ingameFoldersStatus.save_path}>
                       {t('settings.savePathAutoDetected', { path: ingameFoldersStatus.save_path })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="h-px bg-[#1c2a38] my-1" />
-
-                {/* Software Updates Block */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-white block">
-                        {t('settings.softwareUpdates')}
-                      </span>
-                      <span className="text-[11px] text-gray-400 block">
-                        {t('settings.currentVersion', { version: updateCheckResult?.current_version || 'v0.1.1-beta-updatable' })}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCheckUpdates}
-                      disabled={isCheckingUpdates}
-                      className="px-3 py-1.5 bg-[#2a475e] hover:bg-[#3d6585] text-white text-xs font-medium rounded-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
-                      <span>{isCheckingUpdates ? t('settings.checkingUpdates') : t('settings.checkUpdates')}</span>
-                    </button>
-                  </div>
-
-                  {updateCheckResult && (
-                    <div className={`text-[11px] p-2.5 rounded border space-y-2 ${
-                      updateCheckResult.has_update 
-                        ? 'bg-[#1b2f1e] border-[#388e3c] text-green-300' 
-                        : 'bg-[#121a24] border-[#202f40] text-gray-300'
-                    }`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span>
-                          {updateCheckResult.has_update
-                            ? t('settings.updateAvailable', { version: updateCheckResult.latest_version })
-                            : t('settings.upToDate', { version: updateCheckResult.current_version })}
-                        </span>
-                        {updateCheckResult.release_url && (
-                          <a
-                            href={updateCheckResult.release_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#66c0f4] hover:underline text-[10.5px] font-semibold"
-                          >
-                            {t('settings.viewRelease')} →
-                          </a>
-                        )}
-                      </div>
-
-                      {updateCheckResult.has_update && (
-                        <div className="pt-1 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => onOpenUpdateModal && onOpenUpdateModal(updateCheckResult)}
-                            className="px-3 py-1 bg-[#2e7d32] hover:bg-[#388e3c] text-white text-[11px] font-bold rounded shadow transition cursor-pointer"
-                          >
-                            {t('updater.downloadBtn')}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

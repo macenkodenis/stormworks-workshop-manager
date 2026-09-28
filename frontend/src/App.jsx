@@ -250,61 +250,13 @@ function normalizeCardSize(val) {
     };
   }, [leftWidth, rightWidth]);
 
-  // Dynamic Sticky Sidebar geometry: dynamically anchors sidebar bottom to the screen bottom across all zoom levels
-  const [stickySidebarStyle, setStickySidebarStyle] = useState({
-    top: '3.5625rem',
-    height: 'calc(100vh - 4.25rem)'
-  });
-
-  const updateSidebarGeometry = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    window.requestAnimationFrame(() => {
-      const zoomStr = document.documentElement.style.zoom;
-      let z = 1;
-      if (zoomStr) {
-        const parsed = parseFloat(zoomStr);
-        if (!isNaN(parsed) && parsed > 0) {
-          z = zoomStr.endsWith('%') ? parsed / 100 : parsed;
-        }
-      }
-
-      const header = document.querySelector('header');
-      const headerBottomVisual = header ? header.getBoundingClientRect().bottom : (49 * z);
-      const cssHeaderBottom = headerBottomVisual / z;
-
-      const mainEl = document.querySelector('main');
-      const container = mainEl?.parentElement;
-      const containerPadTop = container ? parseFloat(window.getComputedStyle(container).paddingTop) || 8 : 8;
-      const containerPadBottom = container ? parseFloat(window.getComputedStyle(container).paddingBottom) || 8 : 8;
-
-      const cssTop = Math.round(cssHeaderBottom + containerPadTop);
-      const cssViewportH = window.innerHeight / z;
-      const cssHeight = Math.max(Math.round(cssViewportH - cssTop - containerPadBottom), 200);
-
-      setStickySidebarStyle(prev => {
-        const nextTop = `${cssTop}px`;
-        const nextHeight = `${cssHeight}px`;
-        if (prev.top === nextTop && prev.height === nextHeight) return prev;
-        return { top: nextTop, height: nextHeight };
-      });
-    });
-  }, []);
-
-  // Initialize saved zoom and observe window resize without layout thrashing
+  // Initialize saved zoom
   useEffect(() => {
     const savedZoom = localStorage.getItem('sw_ui_zoom');
     if (savedZoom) {
       document.documentElement.style.zoom = `${savedZoom}%`;
     }
-
-    updateSidebarGeometry();
-
-    window.addEventListener('resize', updateSidebarGeometry, { passive: true });
-
-    return () => {
-      window.removeEventListener('resize', updateSidebarGeometry);
-    };
-  }, [updateSidebarGeometry]);
+  }, []);
 
   // Tag Filtering (Steam tags)
   const [selectedTags, setSelectedTags] = useState(new Set());
@@ -2553,24 +2505,84 @@ function normalizeCardSize(val) {
     setAnchorId(id);
   }, []);
 
-  // Progressive Catalog Chunk Rendering: 60 items per batch to ensure smooth 60fps & instant loading
-  const [visibleCount, setVisibleCount] = useState(60);
+  // Progressive Catalog Chunk Rendering with Virtual Bottom Spacer
+  // Ensures instant, freeze-free load on Windows while maintaining stable, accurate scrollbar
+  const [visibleCount, setVisibleCount] = useState(80);
+  const [columnCount, setColumnCount] = useState(5);
 
   useEffect(() => {
-    setVisibleCount(60);
+    setVisibleCount(80);
   }, [searchQuery, selectedTags, selectedUserTags, excludedTags, systemFilter, selectedCollectionId, selectedInGameFolder, sortBy, sortDir]);
 
+  // Track actual grid columns dynamically
+  useEffect(() => {
+    const mainEl = mainRef.current;
+    if (!mainEl) return;
+    const updateColumns = () => {
+      const config = GRID_LAYOUT_CONFIG[viewMode]?.[cardSize] || GRID_LAYOUT_CONFIG.grid[2];
+      if (config.minWidth === '100%') {
+        setColumnCount(1);
+        return;
+      }
+      const containerWidth = mainEl.clientWidth - 32;
+      const minColWidth = parseInt(config.minWidth) || 250;
+      const cols = Math.max(1, Math.floor(containerWidth / (minColWidth + 14)));
+      setColumnCount(cols);
+    };
+    updateColumns();
+    const ro = new ResizeObserver(updateColumns);
+    ro.observe(mainEl);
+    return () => ro.disconnect();
+  }, [viewMode, cardSize]);
+
+  // Compute bottom spacer height for unmounted rows so scrollHeight is 100% stable
+  const bottomSpacerHeight = useMemo(() => {
+    const unmountedCount = Math.max(0, filteredItems.length - visibleCount);
+    if (unmountedCount === 0) return 0;
+    const unmountedRows = Math.ceil(unmountedCount / Math.max(1, columnCount));
+    // Estimated row heights including gap
+    let rowHeight = 354;
+    if (viewMode === 'list') {
+      rowHeight = cardSize === 1 ? 102 : cardSize === 2 ? 106 : 134;
+    } else {
+      rowHeight = cardSize === 1 ? 292 : cardSize === 2 ? 354 : 418;
+    }
+    return unmountedRows * rowHeight;
+  }, [filteredItems.length, visibleCount, columnCount, viewMode, cardSize]);
+
+  // Progressive background idle mounting + responsive scroll mounting
   useEffect(() => {
     const mainEl = mainRef.current;
     if (!mainEl) return;
     const handleCatalogScroll = () => {
-      if (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 800) {
-        setVisibleCount(prev => (prev < filteredItems.length ? Math.min(prev + 60, filteredItems.length) : prev));
+      const { scrollTop, clientHeight, scrollHeight } = mainEl;
+      if (scrollHeight <= 0) return;
+
+      // Regular scroll threshold near bottom of rendered area
+      if (scrollTop + clientHeight >= scrollHeight - bottomSpacerHeight - 800) {
+        setVisibleCount(prev => (prev < filteredItems.length ? Math.min(prev + 80, filteredItems.length) : prev));
+        return;
+      }
+
+      // Fast thumb drag support: jump directly to needed index
+      const scrollRatio = (scrollTop + clientHeight) / scrollHeight;
+      const neededItems = Math.min(filteredItems.length, Math.ceil(filteredItems.length * scrollRatio) + 40);
+      if (neededItems > visibleCount) {
+        setVisibleCount(neededItems);
       }
     };
     mainEl.addEventListener('scroll', handleCatalogScroll, { passive: true });
     return () => mainEl.removeEventListener('scroll', handleCatalogScroll);
-  }, [filteredItems.length]);
+  }, [filteredItems.length, bottomSpacerHeight, visibleCount]);
+
+  // Idle background pre-rendering: smoothly mount remainder in background when CPU is free
+  useEffect(() => {
+    if (visibleCount >= filteredItems.length) return;
+    const timer = setTimeout(() => {
+      setVisibleCount(prev => Math.min(prev + 80, filteredItems.length));
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [visibleCount, filteredItems.length]);
 
   // Selection handlers
   const handleItemClick = useCallback((e, item) => {
@@ -2968,7 +2980,7 @@ function normalizeCardSize(val) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0e141b] flex flex-col items-center justify-center text-[#66c0f4]">
+      <div className="h-full w-full bg-[#0e141b] flex flex-col items-center justify-center text-[#66c0f4]">
         <Loader2 className="w-10 h-10 animate-spin mb-3" />
         <span className="text-sm font-medium">{t('app.loading')}</span>
       </div>
@@ -2976,7 +2988,7 @@ function normalizeCardSize(val) {
   }
 
   return (
-    <div className="h-screen bg-[#0e141b] flex flex-col w-full overflow-hidden">
+    <div className="h-full w-full bg-[#0e141b] flex flex-col overflow-hidden">
       
       {/* Unified Top Header Bar */}
       <Header
@@ -3098,7 +3110,13 @@ function normalizeCardSize(val) {
               )}
             </div>
           ) : (
-            <div className={gridClassName} style={gridContainerStyle}>
+            <div
+              className={gridClassName}
+              style={{
+                ...gridContainerStyle,
+                paddingBottom: bottomSpacerHeight > 0 ? `${bottomSpacerHeight}px` : undefined
+              }}
+            >
               {filteredItems.slice(0, visibleCount).map((item, index) => {
                 const isSelected = selectedIds.has(item.published_file_id);
                 const isAnchor = anchorId === item.published_file_id;
@@ -3149,12 +3167,6 @@ function normalizeCardSize(val) {
                   />
                 );
               })}
-            </div>
-          )}
-
-          {visibleCount < filteredItems.length && (
-            <div className="py-4 text-center text-xs text-gray-500 font-medium">
-              {t('app.loading')} ({visibleCount} / {filteredItems.length})
             </div>
           )}
 

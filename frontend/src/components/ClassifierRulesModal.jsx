@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Sliders,
@@ -32,6 +32,19 @@ export function ClassifierRulesModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const mouseDownTargetRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Synonyms suggestion state
   const [synonymInput, setSynonymInput] = useState('');
@@ -392,11 +405,25 @@ export function ClassifierRulesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-[#171d25] border border-[#2d4358] rounded-xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-[#c7d5e0]">
+    <div
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 overflow-y-auto"
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[#171d25] border border-[#2d4358] rounded-xl w-full max-w-4xl max-h-[calc(100%-2rem)] flex flex-col shadow-2xl overflow-hidden text-[#c7d5e0] my-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#233547] flex items-center justify-between bg-[#121820]">
+        <div className="px-6 py-4 border-b border-[#233547] flex items-center justify-between bg-[#121820] shrink-0">
           <div className="flex items-center gap-2.5">
             <Sliders className="w-5 h-5 text-[#b388ff]" />
             <div>
@@ -413,7 +440,7 @@ export function ClassifierRulesModal({
         </div>
 
         {/* Global Rule Banner: Pruning parents */}
-        <div className="px-6 py-2.5 bg-[#141b24] border-b border-[#233547] flex items-center justify-between">
+        <div className="px-6 py-2.5 bg-[#141b24] border-b border-[#233547] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -433,7 +460,7 @@ export function ClassifierRulesModal({
         </div>
 
         {/* Content Body: Left Column (Tags) + Right Column (Rules) */}
-        <div className="flex-1 flex overflow-hidden min-h-[480px]">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           
           {/* Left Column: Tags list with search */}
           <div className="w-64 border-r border-[#233547] bg-[#131922] flex flex-col">
@@ -969,7 +996,7 @@ export function ClassifierRulesModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-[#121820] border-t border-[#233547] flex items-center justify-between">
+        <div className="px-6 py-4 bg-[#121820] border-t border-[#233547] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 text-xs">
             {saveSuccess && (
               <span className="text-[#a4d053] flex items-center gap-1 font-semibold animate-in fade-in">

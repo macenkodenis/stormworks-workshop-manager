@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   ExternalLink,
@@ -62,6 +62,7 @@ export function ItemDetailModal({
   totalCount
 }) {
   const { t, tTag, lang, translateTags, updateTagTranslations, customTagTranslations } = useI18n();
+  const mouseDownTargetRef = useRef(null);
   const [activeTab, setActiveTab] = useState(initialSidebarMode || 'tags');
   const [newColInput, setNewColInput] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -576,8 +577,11 @@ export function ItemDetailModal({
 
   return (
     <div
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
           onClose();
         }
       }}
@@ -585,11 +589,12 @@ export function ItemDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#101721] border border-[#1e2c3d] rounded-xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        onMouseDown={(e) => e.stopPropagation()}
+        className="bg-[#101721] border border-[#1e2c3d] rounded-xl w-full max-w-5xl max-h-[calc(100%-2rem)] my-auto flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         
         {/* Top Header */}
-        <div className="px-6 py-3.5 border-b border-[#1b2838] flex items-center justify-between bg-[#121922]">
+        <div className="px-6 py-3.5 border-b border-[#1b2838] flex items-center justify-between bg-[#121922] shrink-0">
           <div className="flex items-center gap-3 truncate mr-4">
             <h2 className="text-base font-bold text-white truncate" title={item.title}>
               {item.title}
@@ -1202,7 +1207,7 @@ export function ItemDetailModal({
         </div>
 
         {/* Footer: 3 columns, each column has its 2 rows aligned via CSS Grid by number/value start */}
-        <div className="px-6 py-3 bg-[#0d131b] border-t border-[#1b2838] text-xs text-[#8f98a0]">
+        <div className="px-6 py-3 bg-[#0d131b] border-t border-[#1b2838] text-xs text-[#8f98a0] shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
             {/* Column 1: ID мода & ID автора */}
             <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 min-w-0">

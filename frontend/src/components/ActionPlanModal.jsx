@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   X,
   ClipboardList,
@@ -176,6 +176,18 @@ export function ActionPlanModal({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [sortedTagsMode, setSortedTagsMode] = useState('default'); // 'default' | 'keep_old'
   const [isSortedMenuOpen, setIsSortedMenuOpen] = useState(false);
+  const mouseDownTargetRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isExecuting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, isExecuting]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -666,11 +678,25 @@ export function ActionPlanModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-[#171d25] border border-[#2d4358] rounded-xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-[#c7d5e0]">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 overflow-y-auto"
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (!isExecuting && e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="bg-[#171d25] border border-[#2d4358] rounded-xl w-full max-w-4xl max-h-[calc(100%-2rem)] flex flex-col shadow-2xl overflow-hidden text-[#c7d5e0] my-auto"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#233547] flex items-center justify-between bg-[#121820]">
+        <div className="px-6 py-4 border-b border-[#233547] flex items-center justify-between bg-[#121820] shrink-0">
           <div className="flex items-center gap-2.5">
             <ClipboardList className="w-5 h-5 text-[#66c0f4]" />
             <h2 className="text-base font-bold text-white">
@@ -688,7 +714,7 @@ export function ActionPlanModal({
         </div>
 
         {/* Mode & Status Indicator Banner */}
-        <div className="bg-[#1a2432] border-b border-[#24374b] px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+        <div className="bg-[#1a2432] border-b border-[#24374b] px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-gray-400">{t('plan.targetMode')}</span>
             {isModeAActive ? (
@@ -712,7 +738,7 @@ export function ActionPlanModal({
         </div>
 
         {/* Metrics Summary */}
-        <div className="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 border-b border-[#233547] bg-[#141b24]">
+        <div className="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 border-b border-[#233547] bg-[#141b24] shrink-0">
           <div className="bg-[#192330] p-3 rounded border border-[#26374a]">
             <span className="text-[11px] text-[#8f98a0] block">{t('plan.totalInPlan')}</span>
             <div className="text-lg font-bold text-white mt-0.5">
@@ -751,39 +777,8 @@ export function ActionPlanModal({
           </div>
         </div>
 
-        {/* New Tags Detected Section (Interactive Remapping) */}
-        {stats.toAutosort > 0 && newTagsDetected.length > 0 && (
-          <div className="bg-[#1a1528] border-b border-[#3d2763] px-6 py-3 text-xs">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-[#b388ff]" />
-              <strong className="text-white">{t('plan.newTagsTitle')}</strong>
-              <span className="text-gray-400 text-[11px]">{t('plan.newTagsHint')}</span>
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {newTagsDetected.map(tag => (
-                <div key={tag} className="flex items-center gap-1.5 bg-[#231a38] border border-[#4d3278] px-2.5 py-1 rounded">
-                  <span className="font-mono text-[#e0b0ff] font-semibold">{tTag(tag)}</span>
-                  <ArrowRight className="w-3 h-3 text-gray-400" />
-                  <select
-                    value={tagAliases[tag] || tag}
-                    onChange={(e) => handleAliasChange(tag, e.target.value)}
-                    className="bg-[#130f1f] text-xs text-white border border-[#5c3e8e] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#b388ff] cursor-pointer"
-                  >
-                    <option value={tag}>{t('plan.createNewTag', { tag: tTag(tag) })}</option>
-                    <optgroup label={t('plan.replaceExisting')}>
-                      {allExistingTags.map(exist => (
-                        <option key={exist} value={exist}>{tTag(exist)}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Action Filter Pills & Tools */}
-        <div className="px-6 py-2 bg-[#121922] border-b border-[#233547] flex flex-col gap-2 text-xs">
+        <div className="px-6 py-2 bg-[#121922] border-b border-[#233547] flex flex-col gap-2 text-xs shrink-0">
           {/* Row 1: Action Filter Pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] text-gray-400 mr-1 shrink-0 whitespace-nowrap">{t('plan.filter')}</span>
@@ -1004,8 +999,39 @@ export function ActionPlanModal({
           </div>
         </div>
 
-        {/* Items List Content */}
-        <div className="p-4 sm:p-6 flex-1 overflow-y-auto max-h-[380px]">
+        {/* Scrollable Body: Unified scroll for new tags and mod items */}
+        <div className="p-4 sm:p-5 flex-1 overflow-y-auto min-h-0 space-y-3.5">
+          {/* New Tags Detected Section (Interactive Remapping) */}
+          {stats.toAutosort > 0 && newTagsDetected.length > 0 && (
+            <div className="bg-[#1a1528] border border-[#3d2763] rounded-lg p-3 text-xs shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-[#b388ff]" />
+                <strong className="text-white">{t('plan.newTagsTitle')}</strong>
+                <span className="text-gray-400 text-[11px]">{t('plan.newTagsHint')}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {newTagsDetected.map(tag => (
+                  <div key={tag} className="flex items-center gap-1.5 bg-[#231a38] border border-[#4d3278] px-2.5 py-1 rounded">
+                    <span className="font-mono text-[#e0b0ff] font-semibold">{tTag(tag)}</span>
+                    <ArrowRight className="w-3 h-3 text-gray-400" />
+                    <select
+                      value={tagAliases[tag] || tag}
+                      onChange={(e) => handleAliasChange(tag, e.target.value)}
+                      className="bg-[#130f1f] text-xs text-white border border-[#5c3e8e] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#b388ff] cursor-pointer"
+                    >
+                      <option value={tag}>{t('plan.createNewTag', { tag: tTag(tag) })}</option>
+                      <optgroup label={t('plan.replaceExisting')}>
+                        {allExistingTags.map(exist => (
+                          <option key={exist} value={exist}>{tTag(exist)}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {isLoadingPreview && autosortIds.length > 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-[#b388ff] animate-pulse">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -1187,7 +1213,7 @@ export function ActionPlanModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-[#121820] border-t border-[#233547] flex flex-wrap items-center justify-between gap-3">
+        <div className="px-6 py-4 bg-[#121820] border-t border-[#233547] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
